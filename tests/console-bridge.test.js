@@ -158,6 +158,13 @@ describe('the clock — a 5×7 dot matrix (js/console/matrix.js)', () => {
     expect(svg).toContain(`viewBox="0 0 ${18 * 6 - 1} 7"`);
     expect(svg).toContain('aria-label="Tuesday 6 October, 05:19"');
   });
+  it('carries a price, a decimal and a hyphen, each a glyph of its own (K101: "RENT: $0.00", "LOCK-IN")', () => {
+    const lit = (ch) => M.matrixSVG(ch).match(/class="matrix-on" d="([^"]*)"/)[1].match(/M/g)?.length || 0;
+    expect(lit('$')).toBeGreaterThan(0);
+    expect(lit('.')).toBe(4);
+    expect(lit('-')).toBe(5);
+    expect(new Set(['$', '.', '-', 'S', ':', '·'].map((c) => M.matrixSVG(c).match(/class="matrix-on" d="([^"]*)"/)[1])).size).toBe(6);
+  });
   it('draws an unknown character as a blank cell, not a wrong one', () => {
     const svg = M.matrixSVG('?');
     expect(svg.match(/class="matrix-on" d="([^"]*)"/)[1]).toBe('');

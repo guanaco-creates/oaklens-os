@@ -263,3 +263,78 @@ describe('the update — text-light.js', () => {
     expect(code).not.toMatch(/^import /m);
   });
 });
+
+// K101: the headline's turn ran at 25–30 fps in Brave (28–32 of ~95 frames over
+// 33 ms), because a landing word's flare moved --text-flare and so redrew all
+// five shadows, two of them 36 and 72 px wide, at 4.9rem, every frame for 1.4 s
+// (perf/flip.mjs; with the flare off, none). A text that carries its own letters
+// now draws the flare once, on a layer, and the flare fades that layer: 0 frames
+// over 33 ms. The owner chose where the layer sits (over the letters, 0.1em up).
+describe('the flare on a layer (K101)', () => {
+  const layer = (TYPE.match(/\[data-text\]\[data-glyphs\]::after\s*\{([^}]*)\}/) || [])[1] || '';
+  const host = (TYPE.match(/\[data-text\]\[data-glyphs\]\s*\{([^}]*)\}/) || [])[1] || '';
+
+  it('the text keeps its own level and no flare: nothing it draws moves while the layer fades', () => {
+    expect(host).toMatch(/--text-k:\s*calc\(var\(--text-emit\) \* var\(--text-gain\)\)/);
+    expect(host).not.toContain('--text-flare');
+    expect(motion).toMatch(/\[data-text\]\[data-glyphs\]\[data-flare\]\s*\{\s*animation: none;\s*\}/);
+  });
+
+  it('the layer is the same letters in no ink, drawn at the crest against a level written once', () => {
+    expect(layer).toMatch(/content:\s*attr\(data-glyphs\)/);
+    expect(layer).toMatch(/color:\s*transparent/);
+    expect(layer).toContain('var(--text-hot)');
+    expect(layer).toContain('var(--text-rest, 0)');
+    // Read through the dial it would be redrawn every frame of a change of class.
+    expect(layer).not.toContain('--text-emit');
+    expect(layer).not.toContain('--text-flare');
+  });
+
+  it('only its opacity moves, on the flare\'s shape and the thermal pair, and only where motion is welcome', () => {
+    expect(motion).toMatch(/\[data-text\]\[data-glyphs\]\[data-flare\]::after\s*\{\s*animation: text-flare-layer var\(--text-flare-dur\) linear var\(--flare-at\) both;/);
+    const kf = (name) => RULES.match(new RegExp(`@keyframes ${name}\\s*\\{([\\s\\S]*?)\\n\\}`))[1];
+    const fns = (k) => [...k.matchAll(/animation-timing-function:\s*(cubic-bezier\([^)]*\))/g)].map((m) => m[1]);
+    expect(fns(kf('text-flare-layer'))).toEqual(fns(kf('text-flare')));
+    const stops = (k) => [...k.matchAll(/(\d+)%/g)].map((m) => m[1]);
+    expect(stops(kf('text-flare-layer'))).toEqual(stops(kf('text-flare')));
+    expect(kf('text-flare-layer')).not.toMatch(/text-shadow|--text/);
+  });
+
+  it('sits where the owner chose it: over its letters, a tenth of an em up', () => {
+    expect(layer).toMatch(/z-index:\s*1/);
+    expect(layer).toMatch(/transform:\s*translateY\(-0\.1em\)/);
+    expect(host).toMatch(/z-index:\s*0/);
+  });
+
+  it('a flare writes the text\'s level for the layer, and lets go when the layer\'s flare ends', () => {
+    document.body.innerHTML = '<span data-text="live" data-glyphs="LIVE" id="w">LIVE</span>';
+    const w = document.getElementById('w');
+    expect(TL.flare(w)).toBe(true);
+    expect(w.style.getPropertyValue('--text-rest')).not.toBe('');
+    const e = new Event('animationend', { bubbles: true }); e.animationName = 'text-flare-layer';
+    w.dispatchEvent(e);
+    expect(w.hasAttribute('data-flare')).toBe(false);
+  });
+
+  it('the split-flap\'s words carry their letters, whether they turn or are set', async () => {
+    const { flapTo } = await import('../js/console/flap.js');
+    document.body.innerHTML = '<div id="h"></div>';
+    const h = document.getElementById('h');
+    flapTo(h, 'NOTHING WAITING', { wordAttrs: 'data-text="live"' });
+    expect([...h.children].map((w) => w.getAttribute('data-glyphs'))).toEqual(['NOTHING', 'WAITING']);
+    flapTo(h, 'GOING LIVE', { wordAttrs: 'data-text="live"', animate: true });
+    expect([...h.children].map((w) => w.getAttribute('data-glyphs'))).toEqual(['GOING', 'LIVE']);
+  });
+
+  // The film's first proof take caught "GOING LIVE" turning as "GOING LI / VE":
+  // a line may break between inline-blocks, and a turning letter is one.
+  it('a word never breaks between its turning letters', async () => {
+    const { flapTo } = await import('../js/console/flap.js');
+    document.body.innerHTML = '<div id="h"></div>';
+    const h = document.getElementById('h');
+    flapTo(h, 'NOTHING WAITING', { wordAttrs: 'data-text="live"' });
+    flapTo(h, 'GOING LIVE', { wordAttrs: 'data-text="live"', animate: true });
+    expect([...h.children].every((w) => w.classList.contains('flap-word'))).toBe(true);
+    expect(RULES).toMatch(/\.flap-word \{ white-space: nowrap; \}/);
+  });
+});

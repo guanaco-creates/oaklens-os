@@ -9,8 +9,8 @@
 // The colour is the reader's: the dots fill with `currentColor`, the unlit
 // ones at a tenth of it, and `.matrix` takes its phosphor glow from
 // `--matrix-glow` (css/field-console.css, THE DOT MATRIX). English
-// abbreviations on purpose: the matrix has the 26 letters, the digits, a colon
-// and a middle dot, nothing else, and an unknown character draws as a blank
+// abbreviations on purpose: the matrix has the 26 letters, the digits, a colon,
+// a middle dot, a dollar sign, a full stop and a hyphen, nothing else, and an unknown character draws as a blank
 // cell rather than a wrong one.
 
 import { escapeHTML } from './chrome.js';
@@ -36,6 +36,9 @@ const GLYPHS = {
   W: '10001100011000110101101011010101010', X: '10001100010101000100010101000110001',
   Y: '10001100011000101010001000010000100', Z: '11111000010001000100010001000011111',
   ':': '00000011000110000000011000110000000', '·': '00000000000000001100011000000000000',
+  // K101: a price, a decimal and a hyphen, for a line like "RENT: $0.00".
+  '$': '00100011111010001110001011111000100', '.': '00000000000000000000000000110001100',
+  '-': '00000000000000011111000000000000000',
 };
 
 /** The text as an SVG dot matrix; `label` is what a screen reader hears. */

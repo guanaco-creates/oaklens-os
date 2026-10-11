@@ -16,7 +16,7 @@
 // Mutations (/api/* upload, publish, sync) always require the network and are
 // never intercepted or cached — this SW only serves the static shell.
 
-const CACHE = 'oaklens-console-v285';
+const CACHE = 'oaklens-console-v286';
 const SHELL = '/dev/field-console.html';
 // Same-origin shell assets. The js/ versions here must match the import map in
 // field-console.html exactly — that map is where a module's version is decided,
@@ -24,16 +24,16 @@ const SHELL = '/dev/field-console.html';
 // import map, so the duplication is unavoidable; tests/guards.test.js keeps the
 // two in step. CSS is a plain <link>, so its ?v= still lives on the tag.
 const SHELL_ASSETS = [
-  '/css/field-console.css?v=171',
+  '/css/field-console.css?v=172',
   '/js/console-state.js?v=20',
   '/js/console-api.js?v=16',
   '/js/markdown-engine.js?v=5',
   '/js/console-ui.js?v=74',
-  '/js/console/chrome.js?v=49',
+  '/js/console/chrome.js?v=50',
   '/js/console/lighting.js?v=28',
-  '/js/console/text-light.js?v=1',
-  '/js/console/matrix.js?v=1',
-  '/js/console/flap.js?v=3',
+  '/js/console/text-light.js?v=2',
+  '/js/console/matrix.js?v=2',
+  '/js/console/flap.js?v=4',
   '/js/console/help.js?v=21',
   '/js/console/assets.js?v=8',
   '/js/console/utils.js?v=4',

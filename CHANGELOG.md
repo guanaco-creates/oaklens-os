@@ -25,6 +25,23 @@ resources. Keep yours. [setup.md](setup.md) has the exact commands.
 
 ---
 
+## 2026-10-11 (a smoother cold start and status board)
+
+**Nothing to do.** Three fixes to the Field Console, all safe to merge:
+
+- **The cold start lights everything together.** Your words, pictures and
+  buttons used to be at full brightness on the first frame while the room's
+  light came up from black. Now they rise with it.
+- **The Bridge's headline turns smoothly in Chrome and Brave.** When a state
+  changed (NOTHING WAITING to GOING LIVE, say), the glow on each word as it
+  landed was redrawn on every frame, and the turn ran at about 25–30 frames a
+  second. The glow is now drawn once and faded, so the turn holds 60. As each
+  word lands, a red echo of it flares just above it, then fades. A word also
+  no longer breaks across two lines while its letters turn.
+- **The dot-matrix clock can draw `$`, `.` and `-`.**
+
+---
+
 ## 2026-10-08, later (turn on Publish from the console)
 
 **Nothing to do** if Publish already works for you: the `GITHUB_TOKEN` and

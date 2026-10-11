@@ -225,6 +225,39 @@ describe('igniteConsole() decides whether it runs, and lights the keys at the cr
     expect(floor.style.opacity).toBe('');
   });
 
+  // K101, the owner: "all the field console is already lit when the background
+  // lights up, the text should fade up as well … clear as day in the first few
+  // frames".
+  it('the content rises with the room: every piece the light falls on takes the level, capped below 1, then lets go', async () => {
+    const { ignitionLevel, IGNITE_CONTENT, IGNITE_CONTENT_CAP } = await import('../js/console/chrome.js');
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="layout"><div class="room-floor"></div>
+        <nav class="sidebar"><div class="nav-group" id="nav"></div></nav>
+        <main class="main"><section class="view" id="v"></section><canvas class="lighting-layer" id="cv"></canvas></main>
+      </div>`);
+    const pieces = ['b1', 'lamp', 'nav', 'v'].map((id) => document.getElementById(id));
+    expect(IGNITE_CONTENT_CAP).toBeLessThan(1);
+    igniteConsole();
+    for (const el of pieces) expect(el.style.opacity, el.id).toBe('0.000');
+    firstFrame();
+    drawn(400);
+    const mid = ignitionLevel();
+    expect(mid).toBeGreaterThan(0);
+    expect(mid).toBeLessThan(1);
+    for (const el of pieces) expect(Number(el.style.opacity), el.id).toBeCloseTo(mid, 2);
+    drawn(IGNITE_ROW_AT_MS - 400);   // the crest: above 1, and the content held just under it
+    for (const el of pieces) expect(el.style.opacity, el.id).toBe(String(IGNITE_CONTENT_CAP));
+    // The room's own light is not content: it takes the level itself.
+    expect(document.querySelector('.room-floor').matches(IGNITE_CONTENT)).toBe(false);
+    expect(document.getElementById('cv').matches(IGNITE_CONTENT)).toBe(false);
+    drawn(IGNITE_HOLD_MS);
+    for (const el of pieces) expect(el.style.opacity, el.id).toBe('');
+  });
+
+  it('the content is a layer of its own only while the clock writes it', () => {
+    expect(RULES).toMatch(/:root\[data-ignition\] :is\(\.topbar, \.sidebar, \.tabbar\) > \*,\s*:root\[data-ignition\] \.main > \.view \{ will-change: opacity; \}/);
+  });
+
   it('holds the root at least as long as the curve, so the engine follows it to rest', () => {
     expect(IGNITE_HOLD_MS).toBeGreaterThanOrEqual(IGNITE_DUR_MS);
   });

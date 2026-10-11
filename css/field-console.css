@@ -12127,6 +12127,48 @@ body.help-carded .help-target.help-picked { --help-mark: 1.4; transition: --help
     0 0 36px rgba(var(--lit-rgb), calc(var(--text-k) * 0.32)),
     0 0 72px rgba(var(--lit-rgb), calc(var(--text-flare) * var(--text-gain) * 0.3));
 }
+/* THE FLARE ON A LAYER (K101). A text that carries its own letters
+   (data-glyphs: flat text, the split-flap's words) keeps the recipe at its
+   own level, and its flare is drawn ONCE, at the crest, on a layer of its
+   own (::after, the same letters in no ink), which the flare fades in and
+   out. Until K101 the flare moved --text-flare, so all five shadows were
+   redrawn every frame of its 1.4 s; on the headline, at 4.9rem, Brave drew
+   the turn at 25–30 fps (28–32 of ~95 frames over 33 ms; with the flare
+   off, none). A fading layer is the compositor's work. The layer holds
+   what the crest adds to the text's own level, so the two together are
+   as bright as the crest the recipe draws; where it sits is below. */
+[data-text][data-glyphs] {
+  --text-k: calc(var(--text-emit) * var(--text-gain));
+  position: relative; z-index: 0;   /* its own stack, so the layer stays with its word */
+  text-shadow:
+    0 0 1px color-mix(in srgb, var(--text-core) calc(clamp(0, var(--text-k) * 2 - 1, 1) * 55%), transparent),
+    0 0 14px color-mix(in srgb, var(--text-core) calc(var(--text-k) * 20%), transparent),
+    0 0 var(--text-pool-r) rgba(var(--lit-rgb), calc(var(--text-k) * var(--text-pool))),
+    0 0 36px rgba(var(--lit-rgb), calc(var(--text-k) * 0.32));
+}
+[data-text][data-glyphs]::after {
+  content: attr(data-glyphs);
+  /* Registered on the letters: an inline box's top is its font's ascent
+     above the baseline, so the copy is set on the font's own line (normal),
+     not the headline's tight one, which would lift it by half the
+     difference. THEN lifted, on purpose (the owner, K101: a first build
+     landed the layer 15 px high and over the letters, and it "looks
+     cyberpunk … maybe just tightened up"; of a faithful glow and two
+     ghosts, the wider): over the letters, 0.1em up, so a landing word
+     throws a red echo above itself and the ghost scales with the type. */
+  position: absolute; left: 0; top: 0; z-index: 1;
+  transform: translateY(-0.1em);
+  white-space: pre; line-height: normal;
+  color: transparent; pointer-events: none;
+  opacity: 0;
+  /* --text-rest: the text's level as the flare began (text-light.js) */
+  text-shadow:
+    0 0 1px color-mix(in srgb, var(--text-core) calc((clamp(0, var(--text-hot) * 2 - 1, 1) - clamp(0, var(--text-rest, 0) * 2 - 1, 1)) * var(--text-gain) * 55%), transparent),
+    0 0 14px color-mix(in srgb, var(--text-core) calc((var(--text-hot) - var(--text-rest, 0)) * var(--text-gain) * 20%), transparent),
+    0 0 var(--text-pool-r) rgba(var(--lit-rgb), calc((var(--text-hot) * max(var(--text-pool), var(--text-hot) * 0.4) - var(--text-rest, 0) * var(--text-pool)) * var(--text-gain))),
+    0 0 36px rgba(var(--lit-rgb), calc((var(--text-hot) - var(--text-rest, 0)) * var(--text-gain) * 0.32)),
+    0 0 72px rgba(var(--lit-rgb), calc(var(--text-hot) * var(--text-gain) * 0.3));
+}
 /* A class is a level, and an act is also a colour. */
 [data-text="stat"] { --text-emit: var(--text-stat); }
 [data-text="act"]  {
@@ -12174,6 +12216,13 @@ body.help-carded .help-target.help-picked { --help-mark: 1.4; transition: --help
   [data-text][data-flare] {
     animation: text-flare var(--text-flare-dur) linear var(--flare-at) both;
   }
+  /* The layer's flare (above): its opacity on the same shape, and the text
+     itself still. */
+  [data-text][data-glyphs][data-flare] { animation: none; }
+  [data-text][data-glyphs][data-flare]::after {
+    animation: text-flare-layer var(--text-flare-dur) linear var(--flare-at) both;
+    will-change: opacity;
+  }
 }
 /* Heat, then cool: the console's thermal pair, copied in because a
    keyframe's timing function cannot read a custom property (tests hold
@@ -12182,6 +12231,13 @@ body.help-carded .help-target.help-picked { --help-mark: 1.4; transition: --help
   0%   { --text-flare: 0;   animation-timing-function: cubic-bezier(0.8, 0, 0.45, 1); }
   18%  { --text-flare: 1.4; animation-timing-function: cubic-bezier(0.4, 0, 0.1, 1); }
   100% { --text-flare: 0; }
+}
+/* The same shape as an opacity, crest at 1 (the layer is drawn at the
+   crest), on the same pair. */
+@keyframes text-flare-layer {
+  0%   { opacity: 0; animation-timing-function: cubic-bezier(0.8, 0, 0.45, 1); }
+  18%  { opacity: 1; animation-timing-function: cubic-bezier(0.4, 0, 0.1, 1); }
+  100% { opacity: 0; }
 }
 /* THE SIDEBAR'S ROWS IN TYPE (K91). A row's icon and word are acts that keep
    the row's ink (grey at rest, bright under the hand, the accent where you
@@ -12227,6 +12283,7 @@ body.help-carded .help-target.help-picked { --help-mark: 1.4; transition: --help
    drop, was most of what a flip cost Safari (K77, measured in WebKit:
    2–6 long frames a flip with it, 2 without).
    ===================================================================== */
+.flap-word { white-space: nowrap; }   /* a word breaks between words, never between its turning letters (K101) */
 .flap.is-turning { display: inline-block; overflow-x: clip; text-align: center; vertical-align: bottom; transform-origin: 50% 0; text-shadow: none; }
 @media (prefers-reduced-motion: no-preference) {
   .flap.is-drop-a { animation: flap-drop-a 110ms var(--ease-out); }
@@ -12302,6 +12359,11 @@ body.help-carded .help-target.help-picked { --help-mark: 1.4; transition: --help
 }
 .layout:has(> .main > #view-bridge.active) > .room-floor { opacity: calc(1 / var(--floor-crest)); }
 :root[data-ignition] .room-floor { will-change: opacity; transition: none; }   /* the clock writes it each frame */
+/* The content rises with the room (K101, chrome.js IGNITE_CONTENT): the
+   clock writes each piece's opacity, so each is a layer of its own while it
+   runs and nothing under it repaints. */
+:root[data-ignition] :is(.topbar, .sidebar, .tabbar) > *,
+:root[data-ignition] .main > .view { will-change: opacity; }
 :root[data-theme="light"] .br-thumb--type { background: var(--surface-2); }
 :root[data-theme="light"] .room-floor {
   background: radial-gradient(135% 72% at 50% 104%,

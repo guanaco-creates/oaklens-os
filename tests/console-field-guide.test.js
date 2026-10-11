@@ -41,7 +41,7 @@ describe('a light source on the Bridge is never hidden in the markup', () => {
 });
 
 const PERF = join(ROOT, 'docs/capture/perf');
-const TOOLS = ['cold-start', 'switches', 'appear', 'luminance', 'geometry', 'open-cost'];
+const TOOLS = ['cold-start', 'switches', 'flip', 'appear', 'luminance', 'geometry', 'open-cost'];
 
 describe.skipIf(!existsSync(PERF))('the perf bench is in the repo, documented and generic (instance)', () => {
   it('every tool is there, says how to run it, and builds on common.js', () => {

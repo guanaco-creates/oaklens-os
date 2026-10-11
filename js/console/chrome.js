@@ -948,6 +948,12 @@ const IGNITED_KEY = 'oaklens_ignited';
 // rubber band is the rest, on --ease-cool.
 export const IGNITE_CURVE = [[0, 0], [0.5, 1.16], [0.76, 0.95], [1, 1]];
 export const IGNITE_CREST = 1.16;   // the curve's top: the floor's opacity is level / crest (css .room-floor)
+// What rises with the room (K101): everything the light falls on, which is
+// every child of the top bar, the sidebar and the phone's tab bar, and the
+// views. Not the room's own light (.room-floor, the canvases), which takes
+// the level itself, and not a sheet or a modal, which is in front of the room.
+export const IGNITE_CONTENT = '.topbar > *, .sidebar > *, .tabbar > *, .main > .view';
+export const IGNITE_CONTENT_CAP = 0.999;
 /** The room's level at `t` ms into the cold start, on the given heat and cool easings. */
 export function igniteLevel(t, heat = (x) => x, cool = (x) => x) {
   const p = Math.max(0, Math.min(1, t / IGNITE_DUR_MS));
@@ -1007,15 +1013,29 @@ export function igniteConsole({ force = false } = {}) {
   // The floor light takes the level as its opacity: a compositor property,
   // so nothing under it repaints (its gradient is drawn at the crest).
   const floor = document.querySelector('.room-floor');
+  // The content rises with the room (K101). Until then only the light came
+  // up from black: every word, photo and key was already at full strength
+  // on the first frame, lit by nothing (the owner: "clear as day in the
+  // first few frames"). Each piece takes the level as opacity, on a layer
+  // of its own while the clock runs (the floor's bargain), capped below 1
+  // (in WebKit a layer crossing 1 re-composites: SHIP_OPACITY_CAP, K82) and
+  // written only when it changes. The light is not in the set: the canvases
+  // sit beside the views in .main, and the room's level already reaches
+  // them.
+  const content = [...document.querySelectorAll(IGNITE_CONTENT)];
+  let shown = '';
   const setLevel = (level) => {
     _ignitionLevel = level;
     if (floor && root.getAttribute('data-theme') !== 'light') floor.style.opacity = String(Math.max(0, Math.min(1, level / IGNITE_CREST)));
+    const o = Math.max(0, Math.min(IGNITE_CONTENT_CAP, level)).toFixed(3);
+    if (o !== shown) { shown = o; for (const el of content) el.style.opacity = o; }
   };
   const end = () => {
     root.removeAttribute('data-ignition');
     _ignitionT = -1;
     _ignitionLevel = 1;
     floor?.style.removeProperty('opacity');
+    for (const el of content) el.style.removeProperty('opacity');
   };
 
   _ignitionT = 0;

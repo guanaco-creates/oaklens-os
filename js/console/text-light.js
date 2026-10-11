@@ -29,6 +29,8 @@ const STEP_MS = 90;     // the wave's pace from one readout to the next…
 const SPAN_MS = 600;    // …and the most it takes, however many there are
 
 const _flaring = new WeakMap();
+// The flare's keyframes: on the text, or on its layer (K101).
+const FLARES = ['text-flare', 'text-flare-layer'];
 
 /** One text flares: hot, then back to its own class on the cool curve. */
 export function flare(el, at = 0) {
@@ -38,7 +40,17 @@ export function flare(el, at = 0) {
   // Restart, not stack: drop the attribute and settle the style (not the
   // layout — K56) so the animation begins again from cold.
   el.removeAttribute('data-flare');
-  void getComputedStyle(el).animationName;
+  const cs = getComputedStyle(el);
+  void cs.animationName;
+  // A text that carries its own letters flares on a layer (data-glyphs,
+  // css THE FLARE ON A LAYER, K101). The layer is drawn against the text's
+  // level as the flare begins, written once: read through the dial, it
+  // would be redrawn every frame of a change of class (1.2 s, the fall).
+  // Its animation restarts too.
+  if (el.hasAttribute('data-glyphs')) {
+    el.style.setProperty('--text-rest', cs.getPropertyValue('--text-emit').trim() || '0');
+    void getComputedStyle(el, '::after').animationName;
+  }
   el.setAttribute('data-flare', '');
   // Released when it has run. Only on `animationend`: the restart above
   // cancels the flare it replaces, and that cancel arrives after the new one
@@ -46,7 +58,7 @@ export function flare(el, at = 0) {
   if (!_flaring.has(el)) {
     const done = (e) => {
       // Its own flare only: a nested text's end bubbles up through it.
-      if (e && (e.target !== el || (e.animationName && e.animationName !== 'text-flare'))) return;
+      if (e && (e.target !== el || (e.animationName && !FLARES.includes(e.animationName)))) return;
       el.removeAttribute('data-flare');
       el.removeEventListener('animationend', done);
       _flaring.delete(el);

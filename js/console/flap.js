@@ -77,7 +77,14 @@ export function flapTo(el, text, { wordAttrs = '', animate = true } = {}) {
   el.dataset.text = text;
   el.setAttribute('aria-label', text);
   const attrs = wordAttrs ? ' ' + wordAttrs : '';
-  const plain = (w) => `<span${attrs} aria-hidden="true">${escapeHTML(w)}</span>`;
+  // Each word carries its own letters (data-glyphs), so its flare is drawn
+  // once on a layer and faded rather than redrawn every frame (K101: the
+  // headline turned at 25–30 fps in Brave).
+  const glyphs = (w) => ` data-glyphs="${escapeHTML(w)}"`;
+  // A word is one unbreakable unit (K101): its turning letters are
+  // inline-blocks, and a line may break between those, so "GOING LIVE"
+  // turned as "GOING LI / VE".
+  const plain = (w) => `<span class="flap-word"${attrs}${glyphs(w)} aria-hidden="true">${escapeHTML(w)}</span>`;
   if (!animate || !prev || reduced()) {
     el.innerHTML = text.split(' ').filter(Boolean).map(plain).join(' ');
     return;
@@ -87,7 +94,7 @@ export function flapTo(el, text, { wordAttrs = '', animate = true } = {}) {
   const plan = flapPlan(prev, text);
   el.innerHTML = plan.map(({ word, same }) => same
     ? plain(word)
-    : `<span${attrs} aria-hidden="true">${[...word].map((c) => `<span class="flap">${escapeHTML(c)}</span>`).join('')}</span>`).join(' ');
+    : `<span class="flap-word"${attrs}${glyphs(word)} aria-hidden="true">${[...word].map((c) => `<span class="flap">${escapeHTML(c)}</span>`).join('')}</span>`).join(' ');
   const words = [...el.children];
   const cells = [];
   plan.forEach(({ word, was, same }, i) => {
