@@ -2,17 +2,6 @@
 
 **Your work. Published free.**
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/oaklensart/oaklens-os)
-
-**Install it in one click, in your browser.** Before you press the button,
-[read the three things to have ready](setup.md#before-you-click). One of them has
-to be switched on in Cloudflare first, or the install can't finish.
-
-[![CI](https://github.com/oaklensart/oaklens-os/actions/workflows/ci.yml/badge.svg)](https://github.com/oaklensart/oaklens-os/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
-
-https://github.com/user-attachments/assets/cdfe0c20-be10-4c00-b38a-8f1ec434e39c
-
 A digital studio you own: portfolio, blog, audio and storefront on a single
 Cloudflare Worker. No framework, no build step, no monthly bill, and no platform
 standing between you and the people looking at your work.
@@ -22,33 +11,34 @@ camera or phone, put up the track you mixed last night, write the post on the
 train, hit publish. The site commits to **your** GitHub repo and rebuilds
 itself. Nothing you make lives anywhere you can't reach.
 
-Whatever you make is what it's for. It began as one photographer's site and the
-image tools show it — but the writing surface, the audio layer and the feeds are
-first-class, not accessories, and nothing here assumes a camera.
+https://github.com/user-attachments/assets/cdfe0c20-be10-4c00-b38a-8f1ec434e39c
 
-**New to this?** The [one-click install](https://os.oaklens.art/install) is
-three steps on one page: a free GitHub account, a free Cloudflare account with
-R2 switched on, and one link. There is nothing to type. It was written for
-people who don't do this for a living. Start there and you can ignore everything
-below.
+## Install it in one click
 
-Prefer to read it all at once, or to install from a terminal?
-[setup.md](setup.md) is the same ground in reference form, plus everything about
-operating the site once it's up.
+You need a free GitHub account and a free Cloudflare account. The button does
+the rest in your browser: no commands to type, nothing to install on your
+computer.
 
----
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/oaklensart/oaklens-os)
 
-## Engine vs. instance
+> [!IMPORTANT]
+> **Switch on R2 before you press the button.** R2 is where your pictures and
+> audio live, and it is the one piece a new Cloudflare account doesn't have yet.
+> It's a single step in the Cloudflare dashboard. It asks for a payment method
+> and bills nothing for a normal site ([what it costs](#what-it-costs)). Without
+> it the install stops partway, because it has nowhere to put your media.
+> [How to switch it on](setup.md#before-either-way-switch-on-r2).
 
-This repo is the **engine**. A live site is one **configuration** of it.
-
-Identity never lives in code. Everything a fork changes sits in one file,
-`site.config.js` (name, tagline, contact, nav, location, theme, CDN base), and
-everything else derives from the request origin at runtime. So a fresh fork
-works on its free `*.workers.dev` address with zero extra setup, and attaching
-your own domain later changes nothing in the code.
+**Never done this before?** The [one-click install page](https://os.oaklens.art/install)
+walks the same three steps on one page, written for people who don't do this
+for a living. [setup.md](setup.md#before-you-click) has the same ground in
+reference form, including what to put on Cloudflare's setup screen.
 
 ## What you get
+
+Whatever you make is what it's for. It began as one photographer's site and
+the image tools show it — but the writing surface, the audio layer and the
+feeds are first-class, not accessories, and nothing here assumes a camera.
 
 - **A console built for the field.** Cull, write and publish from a phone or an
   iPad on a café table. Two viewing modes: high-contrast for direct sun, OLED
@@ -86,76 +76,10 @@ your own domain later changes nothing in the code.
   runtime JavaScript to visitors. Analytics and media embeds exist, but they are
   off by default and each one widens exactly the one thing it needs.
 
-## Quick start
-
-**The one-click button at the top of this page does steps 1 and 3 for you**,
-with no terminal. Step 2, switching on R2, is still yours to do first
-([what to have ready](setup.md#before-you-click)). The steps below are the
-terminal route, for when you'd rather see every command.
-
-### 1. Get your own copy
-
-**Fork this repo** (button, top right, or *Use this template*), then clone
-**your fork**:
-
-```bash
-git clone https://github.com/YOUR-USERNAME/YOUR-REPO
-cd YOUR-REPO
-```
-
-> **Why a fork and not a clone of this one.** Your site publishes by *committing
-> to your own repo*. You write a post in the console, it saves to GitHub, and
-> Cloudflare rebuilds from there. That needs a repo you can push to. Clone this
-> one directly and everything works right up until your first Publish, hours
-> later. Fork now; it takes five seconds.
-
-### 2. Switch on R2
-
-One click, in your browser, and it has to happen before the next step.
-
-Cloudflare dashboard, then **Storage & databases**, then **R2 Object Storage**,
-then **Add R2 subscription to my account**. R2 is where your pictures and audio live,
-and it is the only piece here that a new Cloudflare account does not already
-have switched on. No command can do it for you.
-
-It asks for a payment method and charges nothing. See
-[What it costs](#what-it-costs) below before you get there, so it is not a
-surprise. When it is done the R2 page reads `$0.00` billable usage and `0 B`
-stored, and there is an **Add Budget Alert** button worth thirty seconds.
-
-### 3. Stand it up
-
-```bash
-npm install
-npx wrangler login      # sign in to Cloudflare
-bash scripts/setup.sh   # creates your storage, deploys, prints your address
-bash scripts/doctor.sh  # confirms it all worked
-```
-
-That's the whole install. `setup.sh` asks a few questions, creates the
-Cloudflare resources for you, puts the site online and tells you its
-`.workers.dev` address. `doctor.sh` says in plain English if anything is still
-missing, including storage your settings name but your account does not have.
-
-### 4. Make it yours
-
-Open `site.config.js` and fill in every field: your name, your tagline, your
-contact address, your city. Then connect the repo to Cloudflare so publishing
-goes live on its own. Both are walked through in [setup.md](setup.md).
-
-Then read **[quickstart.md](quickstart.md)** — it picks up the moment your site
-answers, and walks you through the settings and console moves you'd otherwise
-have to find by clicking around: picking a look, turning pages on, cropping
-thumbnails properly, putting your own work on the homepage, and hitting publish.
-
-Changing words, the menu or the look, yourself or with an AI helping? Start
-with **[CUSTOMIZE.md](CUSTOMIZE.md)**. It says which file each change lives in,
-and which changes carry through future updates and which you'd have to redo.
-
 ## What it costs
 
 Nothing, for a normal site. But you do have to put a payment method on
-file, and we would rather you heard that here than at step 2.
+file, and we would rather you heard that here than halfway through the install.
 
 **Cloudflare asks for a payment method to switch on R2**, the media storage.
 Card, Apple Pay, Google Pay, PayPal or bank, plus a billing address. The
@@ -187,26 +111,99 @@ traffic will eventually cross into paid
 usage, and Cloudflare's own pricing pages are the source of truth there, not
 this README.
 
-## Requirements
+## Once it's live
 
-- A **GitHub account**, free
-- A **Cloudflare account**, free. The account itself asks for no card; the R2
-  storage in step 2 does. See [What it costs](#what-it-costs)
+Your site answers on its free `.workers.dev` address. Three moves make it
+yours, all in the browser and all walked through in
+[setup.md](setup.md#then-make-it-yours): log in to the console, turn on
+Publish, and put your name in `site.config.js`, the one file that holds
+everything about your site that isn't the engine.
 
-That's all the one-click button needs. The terminal route also needs:
+Then read **[quickstart.md](quickstart.md)**. It picks up the moment your site
+answers and walks you through the settings and console moves you'd otherwise
+have to find by clicking around: picking a look, turning pages on, cropping
+thumbnails properly, putting your own work on the homepage, and hitting publish.
 
-- **Node 22 or newer**. The Cloudflare tooling refuses to run on older versions,
-  with an error that doesn't explain itself
-- **Git**, and a terminal you can paste into. On Windows use **Git Bash** (it
-  comes with [Git for Windows](https://git-scm.com/downloads)) or WSL, because
-  the setup scripts are shell scripts and PowerShell can't run them
+Changing words, the menu or the look, yourself or with an AI helping? Start
+with **[CUSTOMIZE.md](CUSTOMIZE.md)**. It says which file each change lives in,
+and which changes carry through future updates and which you'd have to redo.
 
-Budget about fifteen minutes if you already have those, and an hour the first
-time if you don't.
+## Prefer the terminal?
+
+The button above is the whole install for most people. If you'd rather see
+every command, or the button isn't an option for you, this is the same install
+by hand.
+
+<details>
+<summary><b>Install from a terminal</b>: what you need, and every command</summary>
+
+You need **Node 22 or newer** (the Cloudflare tooling refuses to run on older
+versions, with an error that doesn't explain itself) and **Git**, with a
+terminal you can paste into. On Windows use **Git Bash** (it comes with
+[Git for Windows](https://git-scm.com/downloads)) or WSL, because the setup
+scripts are shell scripts and PowerShell can't run them. Budget about fifteen
+minutes if you already have those, and an hour the first time if you don't.
+
+### 1. Get your own copy
+
+**Fork this repo** (button, top right, or *Use this template*), then clone
+**your fork**:
+
+```bash
+git clone https://github.com/YOUR-USERNAME/YOUR-REPO
+cd YOUR-REPO
+```
+
+> **Why a fork and not a clone of this one.** Your site publishes by *committing
+> to your own repo*. You write a post in the console, it saves to GitHub, and
+> Cloudflare rebuilds from there. That needs a repo you can push to. Clone this
+> one directly and everything works right up until your first Publish, hours
+> later. Fork now; it takes five seconds.
+
+### 2. Switch on R2
+
+Same as the one-click route, and before the next step: Cloudflare dashboard,
+then **Storage & databases**, then **R2 Object Storage**, then **Add R2
+subscription to my account**. No command can do it for you. When it is done the
+R2 page reads `$0.00` billable usage and `0 B` stored, and there is an **Add
+Budget Alert** button worth thirty seconds.
+
+### 3. Stand it up
+
+```bash
+npm install
+npx wrangler login      # sign in to Cloudflare
+bash scripts/setup.sh   # creates your storage, deploys, prints your address
+bash scripts/doctor.sh  # confirms it all worked
+```
+
+That's the whole install from a terminal. `setup.sh` asks a few questions,
+creates the Cloudflare resources for you, puts the site online and tells you
+its `.workers.dev` address. `doctor.sh` says in plain English if anything is still
+missing, including storage your settings name but your account does not have.
+
+### 4. Connect your repo
+
+Open `site.config.js` and fill in every field: your name, your tagline, your
+contact address, your city. Then connect the repo to Cloudflare so publishing
+goes live on its own. Both are walked through in
+[setup.md](setup.md#connect-your-repo--this-is-what-makes-publish-work).
+
+</details>
 
 ## How it works
 
-For the curious, or anyone deciding whether to trust it:
+[![CI](https://github.com/oaklensart/oaklens-os/actions/workflows/ci.yml/badge.svg)](https://github.com/oaklensart/oaklens-os/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
+
+For the curious, or anyone deciding whether to trust it.
+
+**Engine vs. instance.** This repo is the **engine**. A live site is one
+**configuration** of it. Identity never lives in code. Everything a fork changes
+sits in one file, `site.config.js` (name, tagline, contact, nav, location,
+theme, CDN base), and everything else derives from the request origin at
+runtime. So a fresh fork works on its free `*.workers.dev` address with zero
+extra setup, and attaching your own domain later changes nothing in the code.
 
 - **One Worker, one deploy.** `worker.js` is a thin router; every subsystem
   lives in `src/`. Static assets and server code ship together, so there's no
