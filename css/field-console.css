@@ -1283,7 +1283,11 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--on-accent);
   font-weight: 700;
 }
-.btn-primary:hover { background: var(--ink-1); border-color: var(--ink-1); color: var(--surface-0); }
+/* (No hover here. Until K103 this rule painted the key white under the hand:
+   it outranks the lit cap's background below (.btn-primary, THE FLOATING
+   KEYS), so ▲ PUBLISH and POST PULSE went from a red lit cap to a flat white
+   slab, the look K95 took off the key in flight. Hover is the cap's own
+   --float-glow now; paper keeps its inked hover, :root[data-theme="light"].) */
 .btn-stage {
   background: transparent;
   border-color: var(--accent);

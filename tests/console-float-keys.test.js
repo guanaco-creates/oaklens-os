@@ -68,3 +68,19 @@ describe('a licensed key wears the top row\'s light and edge', () => {
     expect(RULES).toMatch(/--backlight var\(--float-fall\)/);
   });
 });
+
+// K103, found filming the README tour: under the hand, ▲ PUBLISH and POST PULSE
+// went from a red lit cap to a flat white slab (an early `.btn-primary:hover`
+// background outranked the cap's). Hover is the cap's own glow; only paper
+// inks it.
+describe('the hero key stays a lit cap under the hand (K103)', () => {
+  it('no dark-mode rule paints .btn-primary:hover a background', () => {
+    const rules = [...RULES.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .filter(([, sel]) => /\.btn-primary:hover/.test(sel) && !/data-theme="light"/.test(sel));
+    expect(rules.length).toBeGreaterThan(0);
+    for (const [, sel, body] of rules) expect(body, sel.trim()).not.toMatch(/(^|;|\s)background\s*:/);
+  });
+  it('paper keeps its inked hover', () => {
+    expect(RULES).toMatch(/:root\[data-theme="light"\] \.btn-primary:hover[^{]*\{\s*background: var\(--ink-1\)/);
+  });
+});

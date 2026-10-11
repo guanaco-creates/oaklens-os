@@ -25,6 +25,14 @@ resources. Keep yours. [setup.md](setup.md) has the exact commands.
 
 ---
 
+## 2026-10-11, later (the publish key under your pointer)
+
+**Nothing to do.** In the Field Console, hovering ▲ Publish (or Post Pulse)
+turned the key flat white. It now brightens in its own red, the way every
+other key does. On the light (Daylight) theme nothing changes.
+
+---
+
 ## 2026-10-11 (a smoother cold start and status board)
 
 **Nothing to do.** Three fixes to the Field Console, all safe to merge:
