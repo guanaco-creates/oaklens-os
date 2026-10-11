@@ -11,7 +11,11 @@ to be switched on in Cloudflare first, or the install can't finish.
 [![CI](https://github.com/oaklensart/oaklens-os/actions/workflows/ci.yml/badge.svg)](https://github.com/oaklensart/oaklens-os/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
 
-<img width="1448" height="1238" alt="image" src="https://github.com/user-attachments/assets/f12ee42f-55f8-4c47-9dc7-e9400f6fe7c4" />
+
+
+https://github.com/user-attachments/assets/cdfe0c20-be10-4c00-b38a-8f1ec434e39c
+
+
 
 A digital studio you own: portfolio, blog, audio and storefront on a single
 Cloudflare Worker. No framework, no build step, no monthly bill, and no platform
