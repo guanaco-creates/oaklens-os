@@ -22,7 +22,7 @@
 // Tier essentialness for merging duplicate keys: a frame that is both
 // directly referenced (web) and rule-expanded (hires) stays in the most
 // essential tier so it survives the narrowest export.
-const TIER_RANK = { web: 1, video: 2, hires: 3, full: 4 };
+const TIER_RANK = { web: 1, audio: 2, video: 3, hires: 4, full: 5 };
 
 export function relPrefix(file) {
   return '../'.repeat(file.split('/').length - 1);
@@ -119,10 +119,14 @@ function rewriteSrcsetValue(value, ctx, keys) {
 }
 
 // Rewrite the references a saved page carries in its markup: href/src/
-// poster/content (incl. the edge-injected cdn-base meta), srcset, and
-// inline style url(). Regexes only touch attribute syntax, so string
-// literals inside inline <script> bodies pass through — references built
-// by page JS at runtime are the offline shim's job, not this pass's.
+// poster/content (incl. the edge-injected cdn-base meta), data-src (a lazy
+// picture whose script copies it to src after load — the shim only sees
+// nodes as they are added, never an attribute set on one already there),
+// srcset, inline style url(), and url() inside the page's own <style> blocks
+// (the install pages declare their faces there). Regexes only touch
+// attribute and CSS syntax, so string literals inside inline <script> bodies
+// pass through — references built by page JS at runtime are the offline
+// shim's job, not this pass's.
 export function rewriteHtml(html, ctx) {
   const keys = new Set();
   const mapAttr = (m, pre, val, post) => {
@@ -132,13 +136,30 @@ export function rewriteHtml(html, ctx) {
     return pre + r.out + post;
   };
   let out = html
-    .replace(/(\s(?:href|src|poster|content)=")([^"]*)(")/gi, mapAttr)
-    .replace(/(\s(?:href|src|poster|content)=')([^']*)(')/gi, mapAttr);
+    .replace(/(\s(?:href|src|data-src|poster|content)=")([^"]*)(")/gi, mapAttr)
+    .replace(/(\s(?:href|src|data-src|poster|content)=')([^']*)(')/gi, mapAttr);
   out = out.replace(/(\ssrcset=")([^"]*)(")/gi, (m, pre, val, post) =>
     pre + rewriteSrcsetValue(val, ctx, keys) + post);
   out = out.replace(/(\sstyle=")([^"]*)(")/gi, (m, pre, val, post) =>
     val.includes('url(') ? pre + rewriteCssText(val, ctx, keys) + post : m);
+  out = out.replace(/(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi, (m, open, css, close) =>
+    css.includes('url(') ? open + rewriteCssText(css, ctx, keys) + close : m);
   return { html: out, cdnKeys: keys };
+}
+
+// Markup Cloudflare's edge adds to an HTML response on its way out, which the
+// export would otherwise bake into every saved page: the bot-check snippet (an
+// inline script that loads /cdn-cgi/challenge-platform/… — answered by a
+// browser's fetch() too, not only by a navigation), the analytics beacon
+// (static.cloudflareinsights.com, navigations only), and the hidden decoy link
+// into /cdn-cgi/content that its crawler trap plants. None is the site's, and
+// from file:// each is a dead request. Only these: a page's own scripts and
+// links pass through untouched, and nothing else under /cdn-cgi/ is matched.
+export function stripEdgeInjections(html) {
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (m) =>
+      (/\/cdn-cgi\/challenge-platform\/|static\.cloudflareinsights\.com/.test(m) ? '' : m))
+    .replace(/<a\b[^>]*\bhref="[^"]*\/cdn-cgi\/content\?[^"]*"[^>]*>\s*<\/a>/gi, '');
 }
 
 // Turn a dependency-free ES module into a classic script: strip the export
@@ -203,7 +224,9 @@ export function harvestCdnKeys(text, cdnBases) {
 }
 
 export function tierForKey(key) {
-  return /\.(mp4|webm)$/i.test(key) ? 'video' : 'web';
+  if (/\.(mp4|webm)$/i.test(key)) return 'video';
+  if (/\.(mp3|m4a|aac|ogg|opus|wav|flac)$/i.test(key)) return 'audio';
+  return 'web';
 }
 
 // datasets: { 'data/archive.json': [...], … } (parsed). Applies each

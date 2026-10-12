@@ -63,12 +63,25 @@
     return found || null;
   }
 
+  // Is this address a retired card's? Online the worker answers 410 with this
+  // page's sentence below before the page is ever served; anywhere the worker
+  // is not in front of it (the Site-in-a-ZIP export, which has the tombstone
+  // in its cards.json) the page has to say it itself, or a reserved address
+  // reads as one that never existed.
+  function isRetired(cards, id) {
+    if (!id) return false;
+    return (Array.isArray(cards) ? cards : []).some(function (c) {
+      return c && c.id === id && c.retired === true;
+    });
+  }
+
   var g = (typeof globalThis !== 'undefined') ? globalThis
     : (typeof self !== 'undefined' ? self : this);
 
   g.PageCard = {
     idFromLocation: idFromLocation,
     findCard: findCard,
+    isRetired: isRetired,
   };
 
   if (typeof document === 'undefined') return;
@@ -100,9 +113,11 @@
   // Nothing at this address. Deliberately not an error: the common way to land
   // here is a link typed wrong or a card that was never published, and neither
   // is the visitor's fault.
-  function renderEmpty(host) {
+  function renderEmpty(host, retired) {
     var box = el('div', 'cardp-empty');
-    box.innerHTML = '// no card at this address<br><a href="/">Back to the homepage</a>';
+    box.innerHTML = (retired
+      ? '// This card has been retired. Its address stays reserved.'
+      : '// no card at this address') + '<br><a href="/">Back to the homepage</a>';
     host.appendChild(box);
   }
 
@@ -122,7 +137,7 @@
       getJson('/data/audio-sets.json'),
     ]).then(function (res) {
       var card = findCard(res[0], id);
-      if (!card) return renderEmpty(host);
+      if (!card) return renderEmpty(host, isRetired(res[0], id));
       var audio = Array.isArray(res[1]) ? res[1] : [];
       var sets = Array.isArray(res[2]) ? res[2] : [];
 

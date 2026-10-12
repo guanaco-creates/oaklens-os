@@ -152,11 +152,25 @@ const labDesc = document.getElementById('lab-desc');
 const labSpecs = document.getElementById('lab-specs');
 const labDownload = document.getElementById('lab-download');
 
+// The viewer shows the original. When the original is not there (a saved copy
+// made without wallpaper originals, or an original never uploaded) it steps
+// down through the display sizes instead of leaving the panel empty, then
+// settles on the placeholder. Its own chain, not cdnImgError's: that one
+// retries the same URL first and knows nothing of an original's sizes.
+let labSteps = [];
+let labOnOriginal = true;
+labImg.addEventListener('error', () => {
+  labOnOriginal = false;
+  labImg.src = labSteps.shift() || CDN_PLACEHOLDER;
+});
+
 function openLab(idx) {
   currentIdx = idx;
   const w = wallpapers[idx];
   const fullUrl = cdnFull(w.fullres || w.filename);
 
+  labSteps = [2048, 1024, 480].map((size) => cdnSrc(w.filename, size)).filter(Boolean);
+  labOnOriginal = true;
   labImg.src = fullUrl;
   labImg.style.filter = 'none';
   labTitle.textContent = w.title;
@@ -174,7 +188,7 @@ function openLab(idx) {
 
   // Get image dimensions once loaded
   labImg.onload = () => {
-    labSpecs.textContent = `RAW: ${labImg.naturalWidth} × ${labImg.naturalHeight}px`;
+    labSpecs.textContent = labOnOriginal ? `RAW: ${labImg.naturalWidth} × ${labImg.naturalHeight}px` : '';
   };
 }
 
@@ -209,8 +223,30 @@ function downloadWallpaper(e) {
   e.preventDefault();
   const w = wallpapers[currentIdx];
   if (!w) return false;
-  const fullUrl = cdnFull(w.fullres || w.filename);
+  // The file the viewer is actually showing: the original, or the display
+  // size it stepped down to when there is no original to fetch.
+  const fullUrl = labOnOriginal ? cdnFull(w.fullres || w.filename) : (labImg.currentSrc || labImg.src);
   const baseName = (w.filename || w.src || 'wallpaper').replace(/\.[^.]+$/, '');
+  const fileName = (process, ext) => (SITE_FILE_PREFIX
+    ? `${SITE_FILE_PREFIX}_${baseName}_${process}.${ext}`
+    : `${baseName}_${process}.${ext}`);
+
+  // A saved copy (file://) has no origin, so no picture can be drawn onto a
+  // canvas and read back, and no browser will force a download of one local
+  // file from another (Chrome and WebKit both just navigate to it). So open
+  // the file the viewer shows, in colour, in its own tab, where the visitor
+  // can save it and the Wall stays where they left it.
+  if (location.protocol === 'file:') {
+    const a = document.createElement('a');
+    a.href = labImg.currentSrc || labImg.src;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.download = fileName('COLOR', (a.href.match(/\.([a-z0-9]+)(?:[?#]|$)/i) || [, 'jpg'])[1].toLowerCase());
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return false;
+  }
 
   const filterMap = {
     color: 'none',
@@ -248,9 +284,7 @@ function downloadWallpaper(e) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = SITE_FILE_PREFIX
-        ? `${SITE_FILE_PREFIX}_${baseName}_${currentProcess.toUpperCase()}.jpg`
-        : `${baseName}_${currentProcess.toUpperCase()}.jpg`;
+      a.download = fileName(currentProcess.toUpperCase(), 'jpg');
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -332,6 +366,7 @@ document.querySelector('#gtd-lab-form .gtd-submit')?.addEventListener('click', s
 // onerror). Errors bubble to this capture-phase listener; cdnImgError no-ops
 // on non-CDN images.
 window.addEventListener('error', (e) => {
+  if (e.target === labImg) return;  // the viewer runs its own chain (openLab)
   if (e.target && e.target.tagName === 'IMG') cdnImgError(e.target);
 }, true);
 

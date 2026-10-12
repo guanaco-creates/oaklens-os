@@ -14,6 +14,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import '../js/recent-index.js';
 import '../js/page-card.js';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import worker from '../worker.js';
 import { getCardRecord, getCardOgData, _validCardId } from '../src/edge/chrome.js';
 
@@ -101,7 +103,7 @@ afterEach(() => {
 });
 
 const { entryHref, composedPick } = globalThis.RecentIndex;
-const { idFromLocation, findCard } = globalThis.PageCard;
+const { idFromLocation, findCard, isRetired } = globalThis.PageCard;
 
 const LIVE = { id: 'c-abc123', order: 1, title: 'The long way round', tease: 'Two hours of it.', added_at: '2026-09-11' };
 const TOMB = { id: 'c-gone99', order: 2, retired: true, retired_at: '2026-09-11T00:00:00.000Z' };
@@ -414,5 +416,26 @@ describe('the page — it resolves its own address, with or without a worker', (
     expect(findCard(CARDS, 'c-gone99')).toBeNull();
     expect(findCard(CARDS, 'c-nope')).toBeNull();
     expect(findCard(null, 'c-abc123')).toBeNull();
+  });
+});
+
+// Offline (the Site-in-a-ZIP export) there is no worker to answer 410, so the
+// page itself tells a reserved address from one that never existed — with the
+// worker's own sentence, so the two never disagree about what a tombstone is.
+describe('isRetired — the page says "retired" where the worker cannot', () => {
+  it('knows a tombstone by its id, and nothing else', () => {
+    expect(isRetired([TOMB], 'c-gone99')).toBe(true);
+    expect(isRetired([TOMB], 'c-other')).toBe(false);
+    expect(isRetired([{ id: 'c-live', order: 1 }], 'c-live')).toBe(false);
+    expect(isRetired(null, 'c-gone99')).toBe(false);
+    expect(isRetired([TOMB], '')).toBe(false);
+  });
+
+  it('says what the worker says', () => {
+    const page = readFileSync(join(import.meta.dirname, '..', 'js/page-card.js'), 'utf8');
+    const worker = readFileSync(join(import.meta.dirname, '..', 'worker.js'), 'utf8');
+    const sentence = 'This card has been retired. Its address stays reserved.';
+    expect(worker).toContain(sentence);
+    expect(page).toContain(sentence);
   });
 });

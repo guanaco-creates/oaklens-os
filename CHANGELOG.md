@@ -25,6 +25,30 @@ resources. Keep yours. [setup.md](setup.md) has the exact commands.
 
 ---
 
+## 2026-10-11, last (saved copies of your site play their sound)
+
+**Nothing to do.** Fixes to Site-in-a-ZIP, the offline copy on the Publish
+view, all safe to merge:
+
+- **Audio now travels.** Exports carried the players but never the sound
+  files, so nothing played offline. There is a new **audio** checkbox, on by
+  default.
+- **Field-note video banners travel** (with their poster), under **video**.
+- **Pictures fall back inside the copy.** When a size is missing (say you
+  left high-res out), the large views now step down to a smaller one, as they
+  do online, instead of showing a broken image.
+- **The Wall works from a copy.** Without originals, the viewer shows the
+  display size instead of an empty panel. Download opens the picture in a new
+  tab to save from: a browser will not download one local file from another.
+- **Typefaces declared inside a page** now come along too.
+- **Cleaner pages.** Scripts and a hidden link that Cloudflare adds to every
+  page on its way out are no longer saved into the copy, where they could
+  only fail.
+- **A retired card says so** in the copy, as it does online, instead of
+  "no card at this address".
+
+---
+
 ## 2026-10-11, later (the publish key under your pointer)
 
 **Nothing to do.** In the Field Console, hovering ▲ Publish (or Post Pulse)

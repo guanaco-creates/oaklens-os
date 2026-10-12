@@ -17,6 +17,7 @@ import {
   rewriteHtml,
   inlineCssFonts,
   stripEsmExports,
+  stripEdgeInjections,
   injectOfflineRuntime,
   harvestCdnKeys,
   tierForKey,
@@ -146,6 +147,21 @@ describe('rewriteHtml', () => {
     expect(cdnKeys.size).toBe(3);
   });
 
+  it('rewrites a lazy data-src (set to src by script after load)', () => {
+    const { html } = rewriteHtml('<img class="still" data-src="/os/img/a.webp">', ctxAt('os/index.html'));
+    expect(html).toContain('data-src="../os/img/a.webp"');
+  });
+
+  it('rewrites url() inside a page\'s own <style> block', () => {
+    const { html, cdnKeys } = rewriteHtml(
+      "<style>@font-face{src:url('/fonts/f.woff2')} .h{background:url(https://cdn.example.com/archive/x.webp)}</style>",
+      ctxAt('os/install/index.html'),
+    );
+    expect(html).toContain("url('../../fonts/f.woff2')");
+    expect(html).toContain('url(../../cdn/archive/x.webp)');
+    expect([...cdnKeys]).toEqual(['archive/x.webp']);
+  });
+
   it('never touches string literals inside inline scripts', () => {
     const script = `<script>const res = await fetch('/data/archive.json'); a.href = "/archive";</script>`;
     expect(rewriteHtml(script, ctx).html).toBe(script);
@@ -202,6 +218,29 @@ describe('vendor + font handling', () => {
     expect(order[0]).toBeLessThan(order[1]);
     expect(order[1]).toBeLessThan(order[2]);
     expect(out).toContain('src="../offline/markdown-engine.js"');
+  });
+});
+
+// The three things Cloudflare's edge adds to a page on its way out, as they
+// were found baked into a real export on 2026-10-11 (tokens shortened).
+describe('stripEdgeInjections', () => {
+  const botCheck = "<script>(function(){function c(){var b=a.contentDocument;if(b){var d=b.createElement('script');d.innerHTML=\"window.__CF$cv$params={r:'x',t:'y'};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);\";}}})();</script>";
+  const beacon = "<script defer src='https://static.cloudflareinsights.com/beacon.min.js/v1' data-cf-beacon='{}'></script>";
+  const decoy = '<a href="https://example.com/cdn-cgi/content?id=abc" aria-hidden="true" rel="nofollow noopener" style="display: none !important; visibility: hidden !important"></a>';
+
+  it('removes the bot check, the beacon and the decoy link', () => {
+    const page = `<head><script src="/js/site-common.js?v=3"></script>${beacon}</head><body>${decoy}<main>hi</main><script>var keep = 1;</script>${botCheck}</body>`;
+    const out = stripEdgeInjections(page);
+    expect(out).not.toContain('cdn-cgi');
+    expect(out).not.toContain('cloudflareinsights');
+    expect(out).toContain('<script src="/js/site-common.js?v=3"></script>');
+    expect(out).toContain('<script>var keep = 1;</script>');
+    expect(out).toContain('<main>hi</main>');
+  });
+
+  it('leaves the site\'s own scripts and links alone', () => {
+    const page = '<a href="/archive">a</a><a href="mailto:x@example.com">m</a><script src="/js/page-index.js"></script>';
+    expect(stripEdgeInjections(page)).toBe(page);
   });
 });
 
@@ -303,6 +342,54 @@ describe('harvest + expansion + tiers', () => {
     const without = expandImageRules({ 'data/cards.json': [plain] }, EXPORT_MANIFEST.imageRules);
     expect(withOverlay).toEqual(without);
     expect(withOverlay.map((k) => k.key)).toContain('archive/over%20water-1024w.webp');
+  });
+
+  // Every rule hands back { key, tier } with a tier the panel can switch. A
+  // bare string, or a tier with no checkbox, is media that silently never
+  // ships: mergeKeyTiers has no key to merge, and the exporter's tier filter
+  // reads a missing checkbox as "off". Each rule is fed one entry shaped like
+  // its real records, so a rule added later is held to this the day it lands.
+  it('every rule returns { key, tier } in a tier the panel offers', () => {
+    const panel = read('dev/field-console.html');
+    const orchestrator = read('js/site-export.js');
+    const sample = {
+      filename: 'a b.webp', fullres: 'a b.jpg', hero_filename: 'h.webp', media: 'm.webp',
+      body: '<div class="video-embed" data-src="clip one.mp4"></div>',
+    };
+    const sources = new Set(EXPORT_MANIFEST.imageRules.map((r) => r.source));
+    for (const rule of EXPORT_MANIFEST.imageRules) {
+      const out = rule.expand({ ...sample, filename: rule.source === 'data/audio.json' ? 'a b.mp3' : sample.filename });
+      expect(out.length, `${rule.source} expands a real-shaped entry`).toBeGreaterThan(0);
+      for (const item of out) {
+        expect(typeof item, `${rule.source} returned a bare value`).toBe('object');
+        expect(typeof item.key).toBe('string');
+        expect(panel, `no checkbox for tier '${item.tier}'`).toContain(`id="se-tier-${item.tier}"`);
+        expect(orchestrator, `site-export.js never reads tier '${item.tier}'`).toContain(`'se-tier-${item.tier}'`);
+      }
+    }
+    expect(sources.has('data/audio.json')).toBe(true);
+  });
+
+  it('audio rides in its own tier, encoded, and a retired track carries nothing', () => {
+    const merged = mergeKeyTiers(expandImageRules({
+      'data/audio.json': [
+        { slug: 'bell', filename: 'Ferry Bell.m4a' },
+        { slug: 'gone', filename: 'gone.mp3', retired: true },
+      ],
+    }, EXPORT_MANIFEST.imageRules));
+    expect([...merged]).toEqual([['audio/Ferry%20Bell.m4a', 'audio']]);
+    expect(zipPathForKey('audio/Ferry%20Bell.m4a')).toBe('cdn/audio/Ferry Bell.m4a');
+    expect(tierForKey('audio/x.wav')).toBe('audio');
+  });
+
+  // Field-note video banners name a clip by bare filename; the page builds the
+  // CDN address at runtime (js/page-fn-post.js), so the harvester never sees it.
+  it('a field note\'s video banner carries its clip and poster', () => {
+    const merged = mergeKeyTiers(expandImageRules({
+      'data/posts.json': [{ fn_id: 'fn-1', body: 'x <div class="video-embed" data-caption="c" data-src="San Francisco.mp4"></div> y' }],
+    }, EXPORT_MANIFEST.imageRules));
+    expect(merged.get('videos/San%20Francisco.mp4')).toBe('video');
+    expect(merged.get('videos/posters/San%20Francisco.webp')).toBe('web');
   });
 
   it('merges duplicates keeping the most essential tier', () => {
@@ -451,8 +538,16 @@ describe('integration: repo pages survive the export rewrite', () => {
     expect(tiers.filter((t) => t === 'web').length).toBeGreaterThan(1200);
     expect(tiers.filter((t) => t === 'hires').length).toBeGreaterThan(600);
     expect(tiers.filter((t) => t === 'full').length).toBe(readJson('data/wallpapers.json').length);
+    // Every live track's file, once. This line is what the 2026-10-11 full run
+    // found missing: the audio rule returned bare strings, the merge dropped
+    // them, and this test (which then allowed only archive/ and wallpaper/
+    // keys) would have gone red the day sound started shipping.
+    const tracks = readJson('data/audio.json').filter((t) => t.filename && !t.retired);
+    expect(tracks.length).toBeGreaterThan(0);
+    expect(tiers.filter((t) => t === 'audio').length).toBe(tracks.length);
     for (const key of merged.keys()) {
-      expect(key).toMatch(/^(archive|wallpaper)\/[^\s"']+\.(webp|jpe?g|png)$/);
+      // Keys travel URL-encoded, so no raw space or quote may appear in one.
+      expect(key).toMatch(/^(archive|wallpaper|audio|videos)\/[^\s"']+\.(webp|jpe?g|png|mp4|webm|mp3|m4a|aac|ogg|opus|wav|flac)$/);
     }
   });
 
@@ -515,5 +610,31 @@ describe('integration: repo pages survive the export rewrite', () => {
   it.skipIf(!HAS_CONTENT || !IS_INSTANCE)('real post bodies surface their inline CDN media', () => {
     const keys = harvestCdnKeys(read('posts/fn-004.md'), CDN_BASES);
     expect([...keys]).toContain('blog/rolling_buffer_update_v2.mp4');
+  });
+});
+
+// THE OS PICTURES (instance-only: os/ is stripped from a fork, and so is this
+// list, by scripts/os-extract.mjs). The list is hand-kept and fell behind the
+// landing's redesign: six of its eight pictures were missing from every export
+// until the 2026-10-11 full run. So it is derived here, both ways: every
+// os/img file an OS page names is carried, and nothing is carried that no page
+// or the site config names any more.
+describe.skipIf(!existsSync(join(ROOT, 'os/index.html')))('the OS pages\' pictures', () => {
+  const pages = ['os/index.html', 'os/install/index.html', 'os/setup/index.html', 'os/dayone/index.html']
+    .filter((p) => existsSync(join(ROOT, p)));
+  const named = new Set(pages.flatMap((p) => [...read(p).matchAll(/\/(os\/img\/[\w.-]+)/g)].map((m) => m[1])));
+  const carried = EXPORT_MANIFEST.assets.filter((a) => a.startsWith('os/img/'));
+
+  it('carries every picture an OS page names', () => {
+    expect(named.size).toBeGreaterThan(0);
+    for (const file of named) expect(carried, `${file} is on an OS page`).toContain(file);
+  });
+
+  it('carries nothing no page or the config names, and every entry exists', () => {
+    const config = read('site.config.js');
+    for (const file of carried) {
+      expect(existsSync(join(ROOT, file)), `${file} exists`).toBe(true);
+      expect(named.has(file) || config.includes(file), `${file} is named somewhere`).toBe(true);
+    }
   });
 });

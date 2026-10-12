@@ -20,6 +20,7 @@ import {
   rewriteHtml,
   inlineCssFonts,
   stripEsmExports,
+  stripEdgeInjections,
   injectOfflineRuntime,
   harvestCdnKeys,
   tierForKey,
@@ -58,6 +59,7 @@ function _tiersFromUI() {
     web: on('se-tier-web', true),
     hires: on('se-tier-hires', true),
     video: on('se-tier-video', true),
+    audio: on('se-tier-audio', true),
     full: on('se-tier-full', false),
   };
 }
@@ -172,7 +174,11 @@ export async function exportSiteZip() {
       if (!res.ok && !(res.status === 404 && page.route.endsWith('404.html'))) {
         throw new Error(`${page.route} → HTTP ${res.status}`);
       }
-      const { html, cdnKeys } = rewriteHtml(await res.text(), ctx);
+      const { html: rewritten, cdnKeys } = rewriteHtml(stripEdgeInjections(await res.text()), ctx);
+      // A page that declares its own faces in a <style> block (the install
+      // pages) needs them inlined the same way main.css does, for the same
+      // reason: file:// enforces CORS on fonts.
+      const html = await inlineCssFonts(rewritten, (ref) => _fontDataUri(ref, page.file));
       put(page.file, injectOfflineRuntime(html, ctx.prefix, offlineModuleFiles));
       for (const key of cdnKeys) harvested.push({ key, tier: tierForKey(key) });
       step();

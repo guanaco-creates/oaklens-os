@@ -24,7 +24,11 @@
 
 // The upload pipeline publishes each frame as <base>-{480,1024,2048}w.webp.
 // Tiers let the export UI include/exclude size classes: 'web' (480+1024, the
-// browsing set), 'hires' (2048, the lightbox set), 'full' (originals).
+// browsing set), 'hires' (2048, the lightbox set), 'full' (originals), plus
+// 'video' and 'audio'. Every rule returns { key, tier } objects — a bare
+// string has no key to merge, and the exporter drops it without a word (that
+// is how a whole release of exports shipped with no sound; site-export.test.js
+// now holds every rule to the shape).
 const _base = (f) => encodeURIComponent(String(f).replace(/\.[^.]+$/, ''));
 
 function sizeVariants(prefix, filename) {
@@ -47,6 +51,25 @@ function wallpaperFull(entry) {
     ? `wallpaper/full/${encodeURIComponent(f.replace(/\.webp$/, ''))}.jpg`
     : `wallpaper/full/${encodeURIComponent(f)}`;
   return [{ key, tier: 'full' }];
+}
+
+// Mirrors field-notes/post.html's video banners (js/page-fn-post.js): a post
+// body names a clip by bare filename, `<div class="video-embed"
+// data-src="clip.mp4">`, and the page builds videos/<file> plus an optional
+// poster at videos/posters/<base>.webp at runtime — so no URL the harvester
+// could see is ever written down. A missing poster is a listed failure, the
+// same as online, where the clip simply plays without one.
+function videoEmbeds(body) {
+  const out = [];
+  const tags = String(body || '').match(/<[a-z]+\b[^>]*\bvideo-embed\b[^>]*>/gi) || [];
+  for (const tag of tags) {
+    const m = tag.match(/\sdata-src="([^"]+)"/);
+    const file = m ? m[1].trim() : '';
+    if (!file) continue;
+    out.push({ key: `videos/${encodeURIComponent(file)}`, tier: 'video' });
+    out.push({ key: `videos/posters/${_base(file)}.webp`, tier: 'web' });
+  }
+  return out;
 }
 
 export const EXPORT_MANIFEST = {
@@ -178,14 +201,23 @@ export const EXPORT_MANIFEST = {
     { source: 'data/buffer.json', expand: (e) => e.dark ? [] : sizeVariants('archive', e.filename) },
     { source: 'data/archive.json', expand: (e) => sizeVariants('archive', e.filename) },
     { source: 'data/posts.json', expand: (e) => sizeVariants('archive', e.hero_filename || e.hero) },
+    { source: 'data/posts.json', expand: (e) => videoEmbeds(e.body) },
     {
       source: 'data/wallpapers.json',
       expand: (e) => [...sizeVariants('wallpaper', e.filename), ...wallpaperFull(e)],
     },
-    // Audio has no derived tiers — one canonical object per track. Carrying it
+    // Audio has no derived tiers — one canonical object per track, in its own
+    // 'audio' tier so unticking web images never silences the site. Carrying it
     // is what makes an exported tree PLAY offline rather than just draw the
-    // waveform (the peaks are already in data/audio.json).
-    { source: 'data/audio.json', expand: (e) => (e.filename ? [`audio/${e.filename}`] : []) },
+    // waveform (the peaks are already in data/audio.json). A retired track is a
+    // tombstone whose file was deleted (manual §4.7): it reserves a slug and
+    // contributes no media, the way a dark frame does.
+    {
+      source: 'data/audio.json',
+      expand: (e) => (e.filename && !e.retired
+        ? [{ key: `audio/${encodeURIComponent(e.filename)}`, tier: 'audio' }]
+        : []),
+    },
     // Composed cards name their picture as a bare filename, which the CDN-URL
     // harvester cannot see — without this rule an exported tree ships a card
     // with a broken picture. The folder is on the record because a wallpaper's

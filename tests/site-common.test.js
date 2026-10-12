@@ -60,3 +60,46 @@ describe('the export carries the shared module', () => {
     expect(EXPORT_MANIFEST.assets).toContain('js/site-common.js');
   });
 });
+
+// The graceful fallback has to work inside a Site-in-a-ZIP copy too, where the
+// edge-injected cdn-base meta has been rewritten to a relative `../cdn` and the
+// browser reports every picture as an absolute file:// URL. Comparing the raw
+// strings never matched, so no saved page ever stepped down a size: the
+// 2026-10-11 full run found the Archive's large view a broken image in every
+// export made without hi-res. Run the real helper against both spellings.
+describe('cdnImgError steps down a size online and inside a saved copy', () => {
+  const run = (meta, href, src) => {
+    const timers = [];
+    const sandbox = {
+      document: {
+        querySelector: (sel) => (sel === 'meta[name="cdn-base"]' ? { content: meta } : null),
+        getElementById: () => null,
+      },
+      location: { href, origin: new URL(href).origin },
+      window: { addEventListener() {} },
+      setTimeout: (fn) => timers.push(fn),
+      URL,
+    };
+    const img = {
+      currentSrc: src, src, srcset: '', dataset: {}, removeAttribute() {},
+    };
+    // eslint-disable-next-line no-new-func
+    new Function(...Object.keys(sandbox), `${read('js/site-common.js')}\ncdnImgError(arguments[arguments.length - 1]);\nreturn cdnImgError;`)
+      (...Object.values(sandbox), img);
+    return { img, timers };
+  };
+
+  it.each([
+    ['live', 'https://cdn.example.com', 'https://example.com/archive/', 'https://cdn.example.com/archive/a-2048w.webp'],
+    ['saved copy', '../cdn', 'file:///media/usb/site/archive/index.html', 'file:///media/usb/site/cdn/archive/a-2048w.webp'],
+  ])('%s: the first failure schedules the retry', (_, meta, href, src) => {
+    const { img, timers } = run(meta, href, src);
+    expect(img.dataset.fb).toBe('1');
+    expect(timers.length).toBe(1);
+  });
+
+  it('leaves a picture that is not from the CDN alone', () => {
+    const { img } = run('../cdn', 'file:///media/usb/site/os/index.html', 'file:///media/usb/site/os/img/a.webp');
+    expect(img.dataset.fb).toBeUndefined();
+  });
+});

@@ -68,7 +68,11 @@ const CDN_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
 
 function cdnImgError(img) {
   const url = img.currentSrc || img.src || '';
-  if (url.indexOf(cdnRoot()) === -1) return;           // CDN images only
+  // CDN images only. Compare against the root RESOLVED against this page: in a
+  // Site-in-a-ZIP copy the meta holds a relative `../cdn` while currentSrc is
+  // an absolute file:// URL, so the raw string never matched and no saved
+  // page ever fell back to another size.
+  if (url.indexOf(new URL(cdnRoot(), location.href).href) === -1) return;
   const step = img.dataset.fb || '0';
   if (step === 'done') return;
   if (img.srcset) img.removeAttribute('srcset');        // pin to our .src
