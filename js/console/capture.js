@@ -7,10 +7,20 @@
 //     a draft of its own kind ('spark', migration 0003), private, in this
 //     device's STATE and the cloud's drafts like any draft, listed under
 //     SPARKS in the Field Notes picker and nowhere on the Bridge's "waiting
-//     on you". EXPAND (or ⇧↵) turns it into a note and opens it in the full
-//     editor with the cursor after its last word. The owner, 2026-10-06:
+//     on you". DRAFT (or ⇧↵; it was EXPAND until 2026-10-12, renamed so the
+//     key says where the words go) turns it into a note and opens it in the
+//     full editor with the cursor after its last word. The owner, 2026-10-06:
 //     "you capture the raw thought on the curb or train, and when you're
 //     ready, it blooms into an essay with zero copy-pasting."
+//     FILE IT (2026-10-12, the owner: words left in the field "just hang
+//     there", and emptying the field "feels like I'm deleting it rather than
+//     storing it away") files the spark as written and hands back an empty
+//     field, so several ideas can be caught without leaving the Bridge. The
+//     words still hang until you file them. Its reverse is one chip, BRING
+//     BACK, offered while the field is still empty (the console's
+//     reversibility rule: one chip, never a history), and the foot counts the
+//     filed sparks; the count opens Field Notes on the newest one, where the
+//     picker shows the rest under SPARKS.
 //   · THE SHELF (05). The newest Buffer frames with their permanent f#: tap
 //     one and its citation goes in at the spark's cursor (the spark keeps
 //     focus); press and hold, or right-click, to copy it. A frame not yet
@@ -40,6 +50,14 @@ const _setCurrent = (id) => { try { if (id) localStorage.setItem(SPARK_KEY, id);
 const _spark = (id) => (id ? (STATE.posts || []).find((p) => p.id === id && p.kind === 'spark' && p.status === 'draft') : null);
 
 let _timer = 0;
+let _lastFiled = '';   // the spark FILE IT just put away, for BRING BACK
+
+/** The sparks filed away: every spark draft but the one the field is writing, newest first. */
+export function filedSparks(state = STATE, current = _current()) {
+  return (state.posts || [])
+    .filter((p) => p && p.kind === 'spark' && p.status === 'draft' && p.id !== current)
+    .sort((a, b) => String(b.added_at || '').localeCompare(String(a.added_at || '')));
+}
 
 /** Keep what is in the field: a spark when it has words, nothing when it is empty. */
 export function sparkSave() {
@@ -57,18 +75,89 @@ export function sparkSave() {
     }
     _setCurrent('');
     _said('kept private');
+    _paintFoot();
     return null;
   }
   if (!_spark(id)) { id = uid(); _setCurrent(id); }
   const post = fnUpsertDraft(id, { kind: 'spark', status: 'draft', title: '', body });
   _said('kept · private');
+  _paintFoot();
   return post;
 }
 
 export function sparkInput() {
   clearTimeout(_timer);
   _said('…');
+  // Writing again ends the offer to bring the last one back: the chip is
+  // resolved against the field as it is now, and the count still reaches it.
+  _lastFiled = '';
+  _paintFoot();
   _timer = setTimeout(sparkSave, SAVE_MS);
+}
+
+/** File the spark as written and hand back an empty field, ready for the next. */
+export function sparkFile() {
+  const field = $('br-spark');
+  if (!field || !field.value.trim()) { field?.focus(); return null; }
+  const post = sparkSave();
+  if (!post) return null;
+  _lastFiled = post.id;
+  _setCurrent('');
+  field.value = '';
+  _said('kept private');
+  _paintFoot();
+  // The count is what changed, so it is what lights (the way a save lights
+  // the status): one readout, never the word "filed" twice.
+  const count = $('br-spark-filed');
+  if (count && !count.hidden) flare(count);
+  field.focus();
+  return post;
+}
+
+/** The reverse of FILE IT, offered while the field is still empty. */
+export function sparkBringBack() {
+  const field = $('br-spark');
+  const s = _spark(_lastFiled);
+  _lastFiled = '';
+  if (!field || !s || field.value.trim()) { _paintFoot(); return null; }
+  _setCurrent(s.id);
+  field.value = s.body || '';
+  _said('kept · private');
+  _paintFoot();
+  field.focus();
+  field.setSelectionRange(field.value.length, field.value.length);
+  return s;
+}
+
+/** Open Field Notes on the newest filed spark; the picker lists the rest under SPARKS. */
+export function sparkOpenFiled() {
+  const newest = filedSparks()[0];
+  if (newest) showView('fn', { load: newest.id, caret: 'end' });
+}
+
+// The foot: what the field is (kept, filed), how many are filed, and the two
+// keys. FILE IT is there while there are words to file; BRING BACK takes its
+// place while the field is empty and the spark it filed still exists.
+function _paintFoot() {
+  const field = $('br-spark');
+  if (!field) return;
+  const has = !!field.value.trim();
+  const back = !has && !!_spark(_lastFiled);
+  const n = filedSparks().length;
+  const count = $('br-spark-filed');
+  if (count) {
+    count.hidden = !n;
+    const text = `${n} spark${n === 1 ? '' : 's'} filed →`;
+    if (count.textContent !== text) count.textContent = text;
+  }
+  // An empty field with sparks filed: the count says it, so the status steps
+  // aside (and the foot holds one line on a phone).
+  const said = $('br-spark-said');
+  if (said) said.hidden = !has && n > 0;
+  const file = $('br-spark-file');
+  if (file) file.hidden = !has;
+  const undo = $('br-spark-back');
+  if (undo) undo.hidden = !back;
 }
 
 /** ⇧↵ (or ⌘↵) expands; a plain ↵ is a new line, as in any note. */
@@ -89,7 +178,9 @@ export function sparkExpand() {
   fnUpsertDraft(post.id, { kind: 'note' });
   field.value = '';
   _setCurrent('');
+  _lastFiled = '';
   _said('kept private');
+  _paintFoot();
   showView('fn', { load: post.id, caret: 'end', focus: true });
 }
 
@@ -183,6 +274,6 @@ function _wireHold() {
 
 registerBridgeRegion({
   id: 'capture',
-  paint() { _restore(); _paintShelf(); _wireHold(); },
+  paint() { _restore(); _paintFoot(); _paintShelf(); _wireHold(); },
   fit: 'br-shelf',
 });

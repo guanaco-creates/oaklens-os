@@ -296,8 +296,8 @@ export const HELP = [
   {
     sel: '#br-spark', view: 'bridge',
     title: 'A spark',
-    body: 'Catch a thought before it goes. It keeps itself as you type, privately, and waits under SPARKS in Field Notes.',
-    note: 'Expand (or shift and return) turns it into a full note, with your cursor where you left off.',
+    body: 'Catch a thought before it goes. It keeps itself as you type, privately. File it puts it away under SPARKS in Field Notes and gives you an empty line for the next one.',
+    note: 'Draft (or shift and return) turns it into a full note in Field Notes, with your cursor where you left off.',
   },
   {
     sel: '#br-shelf', view: 'bridge',

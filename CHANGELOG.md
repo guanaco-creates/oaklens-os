@@ -25,6 +25,22 @@ resources. Keep yours. [setup.md](setup.md) has the exact commands.
 
 ---
 
+## 2026-10-12, last (Ideas capture files ideas away)
+
+**Nothing to do.** On the Bridge's **Ideas capture**, a thought you type
+still stays in the field until you choose what to do with it. Two keys now
+sit under it:
+
+- **File it ↓** puts the idea away under SPARKS in Field Notes and gives you
+  an empty field for the next one. **↩ Bring back** undoes it while the
+  field is still empty.
+- **Draft →** (it was *Expand*) turns the idea into a Field Notes draft and
+  opens it.
+
+The foot counts what you have filed; tap the count to open them.
+
+---
+
 ## 2026-10-12, later (the Archive's buffer strip skips retired frames)
 
 **Nothing to do.** If the newest frame in your Buffer was retired to a dark

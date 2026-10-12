@@ -12729,7 +12729,16 @@ img.br-thumb:not(.is-in) { opacity: 0; }
 .br-spark-input::placeholder { color: var(--ink-3); }
 .br-spark-input:focus { outline: none; }
 /* (The spark's caret at rest: THE SPARK'S CARET, above the help rules.) */
-.br-spark-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+/* Two groups (2026-10-12): what the field is and the filed count on the
+   left, the keys on the right. They wrap as whole groups on a narrow column
+   rather than splitting a key from its neighbour. */
+.br-spark-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px;
+  /* At least the status line's own height (--type-whisper: 0.8125rem / 1.5),
+     so the foot does not move when the status steps aside for the count. */
+  min-height: calc(0.8125rem * 1.5); }
+.br-spark-state, .br-spark-keys { display: inline-flex; align-items: baseline; gap: 14px; min-width: 0; }
+.br-spark-keys { margin-left: auto; }
+.br-spark-foot [hidden] { display: none; }
 /* The bay is the console's standard one (.dropzone, as the Library's), as a
    strip under the headline (2026-10-06): glyph beside legend, a key's
    height. Quiet at rest (the owner: "tone down its glow"): its glass and

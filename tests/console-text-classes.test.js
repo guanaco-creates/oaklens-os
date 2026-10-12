@@ -205,7 +205,11 @@ describe('a surface classifies its text; it never lights it by hand', () => {
   it('every header, line and whisper in the Bridge\'s markup is classified', () => {
     const view = HTML.slice(HTML.indexOf('id="view-bridge"'), HTML.indexOf('id="view-buffer"'));
     const tags = [...view.matchAll(/<\w+[^>]*?\sclass="(br-h|br-line|br-meta|br-works)[\s"][^>]*>/g)].map((m) => m[0]);
-    expect(tags).toHaveLength(8);   // five headers, the spark's EXPAND and its readout, the pulse's whisper (the ship station's next line went with the owner's K82 notes)
+    // Five headers; the spark's readout and its four keys (the filed count,
+    // BRING BACK, FILE IT and DRAFT, which was EXPAND: 2026-10-12); the
+    // pulse's whisper. (The ship station's next line went with the owner's
+    // K82 notes.)
+    expect(tags).toHaveLength(11);
     expect(tags.filter((t) => !/data-text="/.test(t))).toEqual([]);
   });
 });

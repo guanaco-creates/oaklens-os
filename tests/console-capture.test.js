@@ -82,6 +82,82 @@ describe('the spark', () => {
   });
 });
 
+// FILE IT (2026-10-12, the owner: words in the field "just hang there", and
+// emptying the field "feels like I'm deleting it rather than storing it
+// away"). Several ideas, caught one after another, without leaving the Bridge.
+describe('filing sparks away', () => {
+  const $ = (id) => document.getElementById(id);
+  const sparks = () => S.STATE.posts.filter((p) => p.kind === 'spark' && p.status === 'draft');
+
+  it('files the spark as written and hands back an empty field', () => {
+    field().value = 'a song about the ferry bell';
+    const filed = C.sparkFile();
+    expect(filed).toMatchObject({ kind: 'spark', status: 'draft', body: 'a song about the ferry bell' });
+    expect(field().value).toBe('');
+    expect(localStorage.getItem('oaklens_spark_current')).toBeNull();
+    expect(sparks().some((p) => p.id === filed.id)).toBe(true);
+    expect(C.filedSparks()[0].id).toBe(filed.id);
+  });
+
+  it('the next words start a new spark; the filed one is untouched', () => {
+    field().value = 'second idea';
+    const second = C.sparkSave();
+    const first = C.filedSparks().find((p) => p.body === 'a song about the ferry bell');
+    expect(second.id).not.toBe(first.id);
+    expect(first.body).toBe('a song about the ferry bell');
+    C.sparkFile();
+  });
+
+  it('counts the filed sparks in the foot, and the count opens the newest in Field Notes', async () => {
+    const n = C.filedSparks().length;
+    expect($('br-spark-filed').hidden).toBe(false);
+    expect($('br-spark-filed').textContent).toBe(`${n} spark${n === 1 ? '' : 's'} filed →`);
+    const chrome = await import('../js/console/chrome.js');
+    const seen = [];
+    chrome.registerView('fn', { render() {}, onEnter: (seed) => seen.push(seed) });
+    C.sparkOpenFiled();
+    expect(seen.at(-1)).toEqual({ load: C.filedSparks()[0].id, caret: 'end' });
+  });
+
+  it('BRING BACK is the one way back, offered while the field is empty', () => {
+    field().value = 'bring me back';
+    const filed = C.sparkFile();
+    expect($('br-spark-back').hidden).toBe(false);
+    expect($('br-spark-file').hidden).toBe(true);
+    const back = C.sparkBringBack();
+    expect(back.id).toBe(filed.id);
+    expect(field().value).toBe('bring me back');
+    expect(localStorage.getItem('oaklens_spark_current')).toBe(filed.id);
+    expect($('br-spark-back').hidden).toBe(true);
+    expect($('br-spark-file').hidden).toBe(false);
+    C.sparkFile();
+  });
+
+  it('writing again withdraws the offer (the chip is never a dead button)', () => {
+    field().value = 'withdrawn';
+    C.sparkFile();
+    field().value = 'n';
+    C.sparkInput();
+    expect($('br-spark-back').hidden).toBe(true);
+    expect(C.sparkBringBack()).toBeNull();
+    field().value = '';
+    C.sparkSave();
+  });
+
+  it('an empty field files nothing', () => {
+    field().value = '  ';
+    const before = sparks().length;
+    expect(C.sparkFile()).toBeNull();
+    expect(sparks().length).toBe(before);
+  });
+
+  it('the keys say where the words go: File it, and Draft (it was Expand)', () => {
+    expect($('br-spark-file').textContent).toMatch(/^File it/);
+    expect($('br-spark-expand').textContent).toMatch(/^Draft/);
+    expect(html).not.toMatch(/id="br-spark-expand"[^>]*>Expand/);
+  });
+});
+
 describe('the frames to cite', () => {
   it('the newest frames, newest first, with their f#; dark frames never', () => {
     S.STATE.buffer = [

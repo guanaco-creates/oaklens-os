@@ -90,7 +90,7 @@ try {
      DOM half bails here too — no player is mounted in this document. -->
 <script src="/js/audio-player.js?v=9" defer></script>
 
-<link rel="stylesheet" href="/css/field-console.css?v=173">
+<link rel="stylesheet" href="/css/field-console.css?v=174">
 </head>
 <body>
 
@@ -349,9 +349,21 @@ try {
                 <textarea id="br-spark" class="br-spark-input" rows="2" maxlength="20000" spellcheck="true"
                           placeholder="Catch a thought before it goes" aria-label="A quick draft, kept private"
                           oninput="sparkInput()" onkeydown="sparkKey(event)"></textarea>
+                <!-- The foot (2026-10-12): what the field is, how many sparks
+                     are filed (opens Field Notes on the newest), and two keys:
+                     FILE IT puts this one away and empties the field (BRING
+                     BACK takes its place until you type again); DRAFT turns it
+                     into a note in Field Notes. capture.js _paintFoot. -->
                 <div class="br-spark-foot">
-                  <span class="br-meta" id="br-spark-said" data-text="live">kept private</span>
-                  <button type="button" class="br-line br-line--quiet" data-text="act" id="br-spark-expand" onclick="sparkExpand()">Expand <span aria-hidden="true">→</span></button>
+                  <span class="br-spark-state">
+                    <span class="br-meta" id="br-spark-said" data-text="live">kept private</span>
+                    <button type="button" class="br-line br-line--quiet" data-text="info" id="br-spark-filed" onclick="sparkOpenFiled()" hidden></button>
+                  </span>
+                  <span class="br-spark-keys">
+                    <button type="button" class="br-line br-line--quiet" data-text="act" id="br-spark-back" onpointerdown="event.preventDefault()" onclick="sparkBringBack()" hidden><span aria-hidden="true">↩</span> Bring back</button>
+                    <button type="button" class="br-line br-line--quiet" data-text="act" id="br-spark-file" onpointerdown="event.preventDefault()" onclick="sparkFile()" hidden>File it <span aria-hidden="true">↓</span></button>
+                    <button type="button" class="br-line br-line--quiet" data-text="act" id="br-spark-expand" onclick="sparkExpand()">Draft <span aria-hidden="true">→</span></button>
+                  </span>
                 </div>
               </div>
             </div>
@@ -1826,7 +1838,7 @@ try {
     "/js/console/text-light.js": "/js/console/text-light.js?v=2",
     "/js/console/matrix.js":    "/js/console/matrix.js?v=2",
     "/js/console/flap.js":      "/js/console/flap.js?v=4",
-    "/js/console/help.js":      "/js/console/help.js?v=21",
+    "/js/console/help.js":      "/js/console/help.js?v=22",
     "/js/console/assets.js":    "/js/console/assets.js?v=8",
     "/js/console/utils.js":     "/js/console/utils.js?v=4",
     "/js/console/sync.js":      "/js/console/sync.js?v=1",
@@ -1847,7 +1859,7 @@ try {
     "/js/pulse-packs.js":       "/js/pulse-packs.js?v=3",
     "/js/console/pulse.js":     "/js/console/pulse.js?v=8",
     "/js/console/bridge.js":    "/js/console/bridge.js?v=25",
-    "/js/console/capture.js":   "/js/console/capture.js?v=5",
+    "/js/console/capture.js":   "/js/console/capture.js?v=6",
     "/js/console/send-out.js":  "/js/console/send-out.js?v=2",
     "/js/console/init.js":      "/js/console/init.js?v=28",
     "/js/markdown-engine.js":   "/js/markdown-engine.js?v=5",
