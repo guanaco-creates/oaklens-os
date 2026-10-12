@@ -637,6 +637,20 @@ export function _featuredRawFrames(arr, limit = 4) {
 // `_headers` already makes for /data/*.json. Staleness caps at 60s.
 const BUFFER_SUMMARY_CACHE = 'public, max-age=60, stale-while-revalidate=300';
 
+// The frame the archive landing shows as its strip thumbnail: the newest one
+// that still HAS a picture. A dark frame (retired, manual §5.20) keeps its slot
+// and its number, so it counts in `frames` and `days`, but its R2 variants are
+// deleted on the publish that retires it: picking it here showed a dead
+// thumbnail on /archive whenever the newest frame was retired (2026-10-12, a
+// test drop retired a minute after it went live). Null when no frame has one.
+// Newest by captured_at — unshift() order can't be trusted when backlogged
+// photos with old EXIF dates are uploaded later (mirrors the client logic).
+export function _latestShowable(arr) {
+  const live = (Array.isArray(arr) ? arr : []).filter((e) => e && !e.dark && e.filename);
+  if (!live.length) return null;
+  return live.reduce((a, b) => ((a.captured_at || '') > (b.captured_at || '') ? a : b));
+}
+
 export async function handleBufferSummary(request, env) {
   const url = new URL(request.url);
   const empty = (extra = {}) =>
@@ -648,17 +662,18 @@ export async function handleBufferSummary(request, env) {
     const arr = Array.isArray(data) ? data : [];
     if (!arr.length) return empty();
 
-    // Newest by captured_at — unshift() order can't be trusted when backlogged
-    // photos with old EXIF dates are uploaded later (mirrors the client logic).
-    const latest = arr.reduce((a, b) => ((a.captured_at || '') > (b.captured_at || '') ? a : b));
+    const latest = _latestShowable(arr);
     const days = new Set(arr.map((b) => localDay(b.captured_at || b.published_at, siteConfig.timezone))).size;
-    const lastDate = localDay(latest.captured_at || latest.published_at, siteConfig.timezone).slice(5).replace('-', '.');
+    // "last:" beside the thumbnail dates the frame it shows.
+    const lastDate = latest
+      ? localDay(latest.captured_at || latest.published_at, siteConfig.timezone).slice(5).replace('-', '.')
+      : '';
 
     return new Response(JSON.stringify({
       frames: arr.length,
       days,
       lastDate,
-      latest: { filename: latest.filename, focus: latest.focus || '' },
+      latest: latest ? { filename: latest.filename, focus: latest.focus || '' } : null,
       featured: _featuredRawFrames(arr),
     }), {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': BUFFER_SUMMARY_CACHE, ...CORS_HEADERS },

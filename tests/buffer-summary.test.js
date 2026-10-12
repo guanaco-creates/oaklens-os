@@ -15,7 +15,7 @@
 // localDay pins the day bucket to the project timezone (Intl, machine-TZ
 // independent), so these assertions are stable on any CI box.
 import { describe, it, expect } from 'vitest';
-import { _featuredRawFrames } from '../src/api/site-meta.js';
+import { _featuredRawFrames, _latestShowable } from '../src/api/site-meta.js';
 
 // Midday-UTC stamps stay on their calendar date in every zone within 12 hours
 // of UTC, so the day buckets below are unambiguous regardless of where the test
@@ -70,5 +70,25 @@ describe('_featuredRawFrames — featured RAW cards + positional numbers', () =>
     expect(_featuredRawFrames([])).toEqual([]);
     expect(_featuredRawFrames(null)).toEqual([]);
     expect(_featuredRawFrames(undefined)).toEqual([]);
+  });
+});
+
+// The archive landing's strip thumbnail. A dark frame keeps its number (it is
+// counted) but has no picture: its R2 variants go on the publish that retires
+// it. Picking it showed a dead thumbnail on /archive the night a test drop was
+// retired a minute after it went live (2026-10-12).
+describe('_latestShowable — the newest frame that still has a picture', () => {
+  it('skips a retired newest frame', () => {
+    const arr = [...entries, { id: 'F', captured_at: '2025-01-04T12:00:00.000Z', filename: 'f.webp', dark: true }];
+    expect(_latestShowable(arr).id).toBe('E');
+  });
+  it('picks by capture time, not list order', () => {
+    expect(_latestShowable([{ id: 'new', captured_at: D3, filename: 'n.webp' }, { id: 'old', captured_at: D1, filename: 'o.webp' }]).id).toBe('new');
+    expect(_latestShowable([{ id: 'old', captured_at: D1, filename: 'o.webp' }, { id: 'new', captured_at: D3, filename: 'n.webp' }]).id).toBe('new');
+  });
+  it('null when every frame is dark, or there are none', () => {
+    expect(_latestShowable([{ id: 'B', captured_at: D1, filename: 'b.webp', dark: true }])).toBeNull();
+    expect(_latestShowable([])).toBeNull();
+    expect(_latestShowable(null)).toBeNull();
   });
 });

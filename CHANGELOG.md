@@ -25,6 +25,15 @@ resources. Keep yours. [setup.md](setup.md) has the exact commands.
 
 ---
 
+## 2026-10-12, later (the Archive's buffer strip skips retired frames)
+
+**Nothing to do.** If the newest frame in your Buffer was retired to a dark
+frame, the Archive page's buffer strip tried to show its picture, which
+retiring deletes, and drew an empty box. It now shows the newest frame that
+still has a picture. The frame and day counts are unchanged.
+
+---
+
 ## 2026-10-12 (pictures dropped on the Bridge wait in the Library)
 
 **Nothing to do.** In the Field Console, a photo or RAW file dropped, picked
