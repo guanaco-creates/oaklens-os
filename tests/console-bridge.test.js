@@ -25,12 +25,14 @@ beforeAll(async () => {
   B = await import('../js/console/bridge.js');
 });
 
-describe('routeOf — each file to the surface that owns its kind', () => {
+describe('routeOf — each file to where its kind waits', () => {
   const f = (name, type = '') => ({ name, type });
   it.each([
-    [f('IMG_0412.jpg', 'image/jpeg'), 'buffer'],
-    [f('DSCF1234.RAF'), 'buffer'],           // RAWs arrive with no MIME type
-    [f('L1000123.DNG', 'image/x-adobe-dng'), 'buffer'],
+    // Pictures wait in the Library, not the Buffer (owner, 2026-10-12): a
+    // Buffer frame's number is permanent once published.
+    [f('IMG_0412.jpg', 'image/jpeg'), 'library'],
+    [f('DSCF1234.RAF'), 'library'],          // RAWs arrive with no MIME type
+    [f('L1000123.DNG', 'image/x-adobe-dng'), 'library'],
     [f('tide.wav', 'audio/wav'), 'audio'],
     [f('take-2.m4a'), 'audio'],
     [f('clip.mp4', 'video/mp4'), 'library'],
@@ -50,8 +52,21 @@ describe('routePreview — what the headline says mid-drag', () => {
       { kind: 'file', type: 'image/png' }, { kind: 'file', type: 'audio/wav' },
     ];
     const p = B.routePreview(items);
-    expect(p.text).toBe('3 PHOTOS → BUFFER · 1 WAV → AUDIO');
-    expect(p.dests.sort()).toEqual(['audio', 'buffer']);
+    expect(p.text).toBe('3 PHOTOS → LIBRARY · 1 WAV → AUDIO');
+    expect(p.dests.sort()).toEqual(['audio', 'library']);
+  });
+  it('names pictures and video apart, though both wait in the Library', () => {
+    const p = B.routePreview([
+      { kind: 'file', type: 'image/jpeg' }, { kind: 'file', type: 'video/mp4' }, { kind: 'file', type: 'video/webm' },
+    ]);
+    expect(p.text).toBe('1 PHOTO + 2 VIDEOS → LIBRARY');
+    expect(p.dests).toEqual(['library']);
+  });
+  it('names a destination once, however many kinds go there', () => {
+    const p = B.routePreview([
+      { kind: 'file', type: 'audio/wav' }, { kind: 'file', type: 'audio/mpeg' }, { kind: 'file', type: 'audio/mpeg' },
+    ]);
+    expect(p.text).toBe('1 WAV + 2 TRACKS → AUDIO');
   });
   it('admits what a drag cannot know (no names until the drop)', () => {
     expect(B.routePreview([{ kind: 'file', type: '' }, { kind: 'file', type: '' }]).text)
@@ -460,5 +475,22 @@ describe('regions from other modules (K65)', () => {
     expect(B.bridgeKit.say.figure('1')).toMatch(/data-text="stat"/);
     expect(B.bridgeKit.say.line('Go', 'onclick="x()"')).toMatch(/data-text="act"/);
     expect(SRC).toMatch(/const _fitIds = \(\) => \[\.\.\.FIT, \.\.\._regions\.map\(\(r\) => r\.fit\)\.filter\(Boolean\)\];/);
+  });
+});
+
+// THE BRIDGE NEVER FILES INTO THE BUFFER (owner, 2026-10-12). The Bridge is
+// the console's catch-all; a Buffer frame is numbered for good once published
+// (manual §5.20). So nothing it takes in — drop, picker or paste, which all go
+// through routeFiles — may reach the Buffer's ingest. The Buffer's own bay
+// still does.
+describe('the Bridge files pictures into the Library, never the Buffer', () => {
+  const SRC = readFileSync(join(import.meta.dirname, '..', 'js/console/bridge.js'), 'utf8');
+  it('does not import or call the Buffer\'s ingest', () => {
+    expect(SRC).not.toMatch(/\bbufferIngest\b/);
+  });
+  it('hands pictures and video to the Library\'s ingest', () => {
+    const fn = SRC.slice(SRC.indexOf('export async function routeFiles'), SRC.indexOf('// ---- the live facts'));
+    expect(fn).toMatch(/libraryIngest\(by\.library\)/);
+    expect(fn).not.toMatch(/by\.buffer/);
   });
 });

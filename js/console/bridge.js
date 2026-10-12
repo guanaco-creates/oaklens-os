@@ -34,10 +34,10 @@
 //
 // INTAKE: the console's standard bay, a strip under the pulse (tap it for the picker), and
 // the whole page takes a drop too. While files are over the page the bay
-// lights, the headline says where they are going ("3 PHOTOS → BUFFER · 1 WAV
+// lights, the headline says where they are going ("3 PHOTOS → LIBRARY · 1 WAV
 // → AUDIO") and the destinations' sidebar rows light; on the drop each file
-// goes to the surface that owns its kind (routeOf). A pasted image goes to the
-// Buffer, pasted text to the pulse line.
+// goes where its kind waits (routeOf). A pasted image goes to the Library,
+// pasted text to the spark.
 
 import { STATE, STORAGE_KEY, totalStaged } from '../console-state.js';
 import { isLoggedIn, fetchVersion, fetchPulseLog, fetchBench, fetchStorage, remeasureStorage } from '../console-api.js';
@@ -45,7 +45,6 @@ import { toast, escapeHTML, escapeAttrJS, registerView, showView, wireDropzone, 
 import { paintHTML, ymd, uid } from './utils.js';
 import { logEvent } from '../console-telemetry.js';
 import { _failedUploads, _requeueNetFailedUploads } from './upload.js';
-import { bufferIngest } from './buffer.js';
 import { libraryIngest } from './more-views.js';
 import { audioAddFiles, podcastBlockersOpen } from './audio.js';
 import { fnUpsertDraft } from './fn-editor.js';
@@ -162,6 +161,15 @@ export function registerBridgeRegion({ id, paint, fit = '' }) {
 // One table for the drop, the paste and the ADD FILES picker. The surfaces own
 // their own ingest (RAW through the RAW LENS, the duplicate guard, the upload
 // queue); this only decides which one a file belongs to.
+//
+// PICTURES WAIT IN THE LIBRARY (owner, 2026-10-12). They went straight to the
+// Buffer until then, and a Buffer frame is permanent: once published it holds
+// its number forever and can only be retired to a dark frame (manual §5.20).
+// The Bridge is the console's catch-all, where anything gets dropped in
+// passing, so a picture it takes waits in the Library (pre-staged, assigned to
+// no surface) until it is placed on purpose. The Buffer's own bay still files
+// straight into the Buffer. Audio and notes keep their homes: the Library holds
+// images and video only.
 const RAW_EXT = /\.(dng|cr2|cr3|nef|nrw|arw|srf|sr2|raf|orf|rw2|pef|srw|x3f|3fr|iiq)$/i;
 export function routeOf(file) {
   const name = (file && file.name) || '';
@@ -169,13 +177,15 @@ export function routeOf(file) {
   if (/\.(md|markdown)$/i.test(name) || type === 'text/markdown') return 'fn';
   if (type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|flac|ogg|oga|aif|aiff)$/i.test(name)) return 'audio';
   if (type === 'video/mp4' || type === 'video/webm' || /\.(mp4|webm)$/i.test(name)) return 'library';
-  if (type.startsWith('image/') || RAW_EXT.test(name)) return 'buffer';
+  if (type.startsWith('image/') || RAW_EXT.test(name)) return 'library';
   return null;
 }
 
 // While a drag is in flight only MIME types are visible, never names — so the
 // preview names what it can ("1 WAV") and admits what it cannot ("2 FILES").
-const NOUN = { buffer: ['PHOTO', 'PHOTOS'], audio: ['TRACK', 'TRACKS'], library: ['VIDEO', 'VIDEOS'], fn: ['NOTE', 'NOTES'] };
+// The Library takes both pictures and video, so its noun is read off the type.
+const NOUN = { audio: ['TRACK', 'TRACKS'], fn: ['NOTE', 'NOTES'] };
+const LIBRARY_NOUN = { image: ['PHOTO', 'PHOTOS'], video: ['VIDEO', 'VIDEOS'] };
 const AUDIO_KIND = {
   'audio/wav': 'WAV', 'audio/x-wav': 'WAV', 'audio/wave': 'WAV', 'audio/mpeg': 'MP3', 'audio/mp3': 'MP3',
   'audio/mp4': 'M4A', 'audio/x-m4a': 'M4A', 'audio/aac': 'AAC', 'audio/flac': 'FLAC', 'audio/x-flac': 'FLAC',
@@ -189,16 +199,22 @@ export function routePreview(items) {
     const type = it.type || '';
     const dest = routeOf({ name: '', type });
     if (!dest) { unknown++; continue; }
-    const sub = dest === 'audio' ? (AUDIO_KIND[type] || '') : '';
+    const sub = dest === 'audio' ? (AUDIO_KIND[type] || '')
+      : dest === 'library' ? (type.startsWith('video/') ? 'video' : 'image') : '';
     const key = dest + '|' + sub;
     groups.set(key, (groups.get(key) || 0) + 1);
   }
-  const parts = [];
+  // One clause per destination, its kinds joined: "1 PHOTO + 2 VIDEOS →
+  // LIBRARY", never the same destination named twice.
+  const byDest = new Map();
   for (const [key, n] of groups) {
     const [dest, sub] = key.split('|');
-    const noun = sub && n === 1 ? sub : NOUN[dest][n === 1 ? 0 : 1];
-    parts.push(`${n} ${noun} → ${navLabel(dest).toUpperCase()}`);
+    const noun = dest === 'library' ? LIBRARY_NOUN[sub][n === 1 ? 0 : 1]
+      : sub && n === 1 ? sub : NOUN[dest][n === 1 ? 0 : 1];
+    if (!byDest.has(dest)) byDest.set(dest, []);
+    byDest.get(dest).push(`${n} ${noun}`);
   }
+  const parts = [...byDest].map(([dest, kinds]) => `${kinds.join(' + ')} → ${navLabel(dest).toUpperCase()}`);
   if (unknown) parts.push(`${unknown} FILE${unknown === 1 ? '' : 'S'} → SORTED ON DROP`);
   return { text: parts.join(' · '), dests: [...new Set([...groups.keys()].map((k) => k.split('|')[0]))] };
 }
@@ -216,10 +232,9 @@ async function _mdToDraft(file) {
 }
 
 export async function routeFiles(files) {
-  const by = { buffer: [], audio: [], library: [], fn: [] };
+  const by = { audio: [], library: [], fn: [] };
   const stray = [];
   for (const f of files) (by[routeOf(f)] || stray).push(f);
-  if (by.buffer.length) await bufferIngest(by.buffer);
   if (by.audio.length) await audioAddFiles(by.audio);
   if (by.library.length) await libraryIngest(by.library);
   for (const f of by.fn) {

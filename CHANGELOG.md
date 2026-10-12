@@ -25,6 +25,17 @@ resources. Keep yours. [setup.md](setup.md) has the exact commands.
 
 ---
 
+## 2026-10-12 (pictures dropped on the Bridge wait in the Library)
+
+**Nothing to do.** In the Field Console, a photo or RAW file dropped, picked
+or pasted on the Bridge (the console's front page) now goes to the
+**Library**, where it waits until you place it, instead of straight into the
+Buffer. A Buffer frame keeps its number for good once published, so a quick
+drop should not make one. Video already went to the Library; audio and `.md`
+notes go where they did. The Buffer's own drop area works as before.
+
+---
+
 ## 2026-10-11, last (saved copies of your site play their sound)
 
 **Nothing to do.** Fixes to Site-in-a-ZIP, the offline copy on the Publish
